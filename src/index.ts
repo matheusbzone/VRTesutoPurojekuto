@@ -436,9 +436,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const isSoftwareGl = detectSoftwareWebGL();
   const options = new xb.Options();
 
-  // Enable simulator navmesh constraints so the camera respects room walls and furniture.
-  options.simulator.navMesh.enabled = true;
-
   // Stencil buffer MUST be enabled so the portal doorway masks the hidden alien world.
   options.stencil = true;
   options.antialias = !isSoftwareGl;
