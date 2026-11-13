@@ -251,20 +251,61 @@ body[data-state='ready'] #explore-mode-bar {
 #explore-elevation {
   position: fixed;
   right: max(18px, env(safe-area-inset-right));
-  bottom: max(22px, env(safe-area-inset-bottom));
+  bottom: max(218px, calc(204px + env(safe-area-inset-bottom)));
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex-direction: row;
+  gap: 10px;
   pointer-events: none;
+}
+
+#look-joystick {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(76px, calc(62px + env(safe-area-inset-bottom)));
+  width: 128px;
+  height: 128px;
+  pointer-events: auto;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+}
+
+#look-joystick.is-active {
+  cursor: grabbing;
+}
+
+.look-ring {
+  border-color: rgba(217, 107, 255, 0.45);
+  box-shadow:
+    inset 0 0 22px rgba(217, 107, 255, 0.16),
+    0 8px 24px rgba(5, 3, 18, 0.55);
+}
+
+#look-joystick.is-active .look-ring {
+  border-color: rgba(235, 140, 255, 0.9);
+  box-shadow:
+    inset 0 0 26px rgba(217, 107, 255, 0.3),
+    0 8px 26px rgba(5, 3, 18, 0.65);
+}
+
+.look-crosshair {
+  border: 1px dashed rgba(240, 160, 255, 0.35);
+}
+
+.look-knob {
+  background: radial-gradient(circle at 35% 30%, #f6c8ff 0%, #d062ff 52%, #5b1aa8 100%);
+  box-shadow: 0 4px 14px rgba(189, 78, 245, 0.45);
 }
 
 .elev-btn {
   pointer-events: auto;
   touch-action: none;
   user-select: none;
-  width: 78px;
-  height: 62px;
-  border-radius: 16px;
+  width: 59px;
+  height: 48px;
+  border-radius: 14px;
   border: 2px solid rgba(79, 242, 255, 0.5);
   background: rgba(14, 10, 34, 0.82);
   color: #e9fcff;
@@ -308,27 +349,35 @@ body[data-state='ready'] #explore-mode-bar {
 }
 
 @media (max-width: 600px) {
-  #explore-joystick {
-    width: 118px;
-    height: 118px;
-    left: max(14px, env(safe-area-inset-left));
+  #explore-joystick,
+  #look-joystick {
+    width: 116px;
+    height: 116px;
     bottom: max(74px, calc(62px + env(safe-area-inset-bottom)));
   }
 
+  #explore-joystick {
+    left: max(14px, env(safe-area-inset-left));
+  }
+
+  #look-joystick {
+    right: max(14px, env(safe-area-inset-right));
+  }
+
   .joystick-knob {
-    width: 48px;
-    height: 48px;
+    width: 46px;
+    height: 46px;
   }
 
   #explore-elevation {
     right: max(14px, env(safe-area-inset-right));
-    bottom: max(18px, env(safe-area-inset-bottom));
-    gap: 10px;
+    bottom: max(202px, calc(190px + env(safe-area-inset-bottom)));
+    gap: 8px;
   }
 
   .elev-btn {
-    width: 72px;
-    height: 58px;
+    width: 54px;
+    height: 44px;
   }
 }
 

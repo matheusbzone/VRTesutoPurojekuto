@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  applyAngularDeltas,
   clampExplorePosition,
   clampRoomPosition,
   computeExploreMovement,
   computeJoystickInput,
+  computeLookJoystickRotation,
   computePitchYawFromDrag,
 } from './exploreMath';
 
@@ -81,4 +83,23 @@ test('clampRoomPosition keeps player inside room radius and vertical limits', ()
   assert.ok(Math.abs(outside.x - 8.0) < 1e-6);
   assert.equal(outside.y, 2.4);
   assert.equal(outside.z, 0);
+});
+
+test('computeLookJoystickRotation produces correct yaw and pitch angular deltas', () => {
+  const right = computeLookJoystickRotation({x: 1.0, y: 0}, 2.0, 1.5, 0.5);
+  assert.ok(Math.abs(right.yawDelta - -1.0) < 1e-6);
+  assert.equal(right.pitchDelta, 0);
+
+  const up = computeLookJoystickRotation({x: 0, y: 1.0}, 2.0, 1.5, 0.5);
+  assert.equal(up.yawDelta, 0);
+  assert.ok(Math.abs(up.pitchDelta - 0.75) < 1e-6);
+});
+
+test('applyAngularDeltas adds deltas and clamps pitch to maxPitch', () => {
+  const normal = applyAngularDeltas(0.5, 0.2, 0.1, -0.05);
+  assert.ok(Math.abs(normal.yaw - 0.6) < 1e-6);
+  assert.ok(Math.abs(normal.pitch - 0.15) < 1e-6);
+
+  const clamped = applyAngularDeltas(0, 1.4, 0, 0.5, 1.41);
+  assert.equal(clamped.pitch, 1.41);
 });

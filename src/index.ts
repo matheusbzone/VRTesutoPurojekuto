@@ -11,9 +11,11 @@ import {
 } from './portal/PortalFrame';
 import {createPortalControlCard} from './portal/PortalUI';
 import {
+  applyAngularDeltas,
   clampExplorePosition,
   clampRoomPosition,
   computeExploreMovement,
+  computeLookJoystickRotation,
   computePitchYawFromDrag,
 } from './portal/exploreMath';
 import {computeProximityAudioState} from './portal/portalMath';
@@ -270,6 +272,25 @@ class AetherGateExperience extends xb.Script {
     if (!cam) return;
 
     const dt = Math.min(0.05, Math.max(0.001, xb.getDeltaTime()));
+
+    const lookInput = this.exploreControls.getLookInput();
+    if (lookInput.lookX !== 0 || lookInput.lookY !== 0) {
+      _exploreEuler.setFromQuaternion(cam.quaternion, 'YXZ');
+      const rot = computeLookJoystickRotation(
+        {x: lookInput.lookX, y: lookInput.lookY},
+        2.2,
+        1.7,
+        dt
+      );
+      const angles = applyAngularDeltas(
+        _exploreEuler.y,
+        _exploreEuler.x,
+        rot.yawDelta,
+        rot.pitchDelta
+      );
+      _exploreEuler.set(angles.pitch, angles.yaw, 0, 'YXZ');
+      cam.quaternion.setFromEuler(_exploreEuler);
+    }
 
     if (this.exploreMode) {
       const moveInput = this.exploreControls.getMoveInput();

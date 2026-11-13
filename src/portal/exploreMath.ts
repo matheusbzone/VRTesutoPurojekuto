@@ -155,3 +155,41 @@ export function computePitchYawFromDrag(
   );
   return {yaw, pitch};
 }
+
+export interface LookJoystickDelta {
+  yawDelta: number;
+  pitchDelta: number;
+}
+
+/**
+ * Computes angular changes (radians) from continuous look joystick deflection.
+ */
+export function computeLookJoystickRotation(
+  lookInput: {x: number; y: number},
+  yawSpeed = 2.2,
+  pitchSpeed = 1.7,
+  dt = 0.016
+): LookJoystickDelta {
+  if (dt <= 0 || !Number.isFinite(dt)) {
+    return {yawDelta: 0, pitchDelta: 0};
+  }
+  return {
+    yawDelta: -lookInput.x * yawSpeed * dt,
+    pitchDelta: lookInput.y * pitchSpeed * dt,
+  };
+}
+
+/**
+ * Applies yaw and pitch deltas with vertical pitch clamping.
+ */
+export function applyAngularDeltas(
+  currentYaw: number,
+  currentPitch: number,
+  yawDelta: number,
+  pitchDelta: number,
+  maxPitch = Math.PI * 0.45
+): {yaw: number; pitch: number} {
+  const yaw = currentYaw + yawDelta;
+  const pitch = Math.min(maxPitch, Math.max(-maxPitch, currentPitch + pitchDelta));
+  return {yaw, pitch};
+}

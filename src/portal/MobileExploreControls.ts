@@ -19,6 +19,8 @@ export class MobileExploreControls {
   private readonly hudRoot: HTMLDivElement;
   private readonly joystickEl: HTMLDivElement;
   private readonly knobEl: HTMLDivElement;
+  private readonly lookJoystickEl: HTMLDivElement;
+  private readonly lookKnobEl: HTMLDivElement;
   private readonly elevContainer: HTMLDivElement;
   private readonly upButton: HTMLButtonElement;
   private readonly downButton: HTMLButtonElement;
@@ -33,6 +35,10 @@ export class MobileExploreControls {
   private joystickPointerId: number | null = null;
   private moveX = 0;
   private moveZ = 0;
+
+  private lookJoystickPointerId: number | null = null;
+  private lookX = 0;
+  private lookY = 0;
 
   private readonly upPointers = new Set<number>();
   private readonly downPointers = new Set<number>();
@@ -61,12 +67,12 @@ export class MobileExploreControls {
     this.modeBar.appendChild(this.toggleButton);
     document.body.appendChild(this.modeBar);
 
-    // 2. Mobile HUD (Joystick + Subir/Descer)
+    // 2. Mobile HUD (Dual Joystick + Subir/Descer)
     this.hudRoot = document.createElement('div');
     this.hudRoot.id = 'mobile-explore-hud';
     this.hudRoot.hidden = false;
 
-    // Bottom-left virtual analog joystick (always accessible on mobile / non-XR)
+    // Bottom-left virtual analog joystick for movement (accessible in both dimensions)
     this.joystickEl = document.createElement('div');
     this.joystickEl.id = 'explore-joystick';
     this.joystickEl.setAttribute('role', 'application');
@@ -86,7 +92,27 @@ export class MobileExploreControls {
     this.joystickEl.appendChild(ringEl);
     this.hudRoot.appendChild(this.joystickEl);
 
-    // Bottom-right Subir / Descer elevation buttons (shown only in explore mode)
+    // Bottom-right virtual analog joystick for camera look (accessible in both dimensions)
+    this.lookJoystickEl = document.createElement('div');
+    this.lookJoystickEl.id = 'look-joystick';
+    this.lookJoystickEl.setAttribute('role', 'application');
+    this.lookJoystickEl.setAttribute('aria-label', 'Joystick de câmera e olhar');
+
+    const lookRingEl = document.createElement('div');
+    lookRingEl.className = 'joystick-ring look-ring';
+
+    const lookDirHintEl = document.createElement('div');
+    lookDirHintEl.className = 'joystick-crosshair look-crosshair';
+    lookRingEl.appendChild(lookDirHintEl);
+
+    this.lookKnobEl = document.createElement('div');
+    this.lookKnobEl.className = 'joystick-knob look-knob';
+    lookRingEl.appendChild(this.lookKnobEl);
+
+    this.lookJoystickEl.appendChild(lookRingEl);
+    this.hudRoot.appendChild(this.lookJoystickEl);
+
+    // Bottom-right Subir / Descer elevation buttons (shown only in explore mode, above look joystick)
     this.elevContainer = document.createElement('div');
     this.elevContainer.id = 'explore-elevation';
     this.elevContainer.hidden = true;
@@ -120,6 +146,12 @@ export class MobileExploreControls {
     this.joystickEl.addEventListener('pointerup', this.onJoystickPointerEnd);
     this.joystickEl.addEventListener('pointercancel', this.onJoystickPointerEnd);
     this.joystickEl.addEventListener('lostpointercapture', this.onJoystickPointerEnd);
+
+    this.lookJoystickEl.addEventListener('pointerdown', this.onLookJoystickPointerDown);
+    this.lookJoystickEl.addEventListener('pointermove', this.onLookJoystickPointerMove);
+    this.lookJoystickEl.addEventListener('pointerup', this.onLookJoystickPointerEnd);
+    this.lookJoystickEl.addEventListener('pointercancel', this.onLookJoystickPointerEnd);
+    this.lookJoystickEl.addEventListener('lostpointercapture', this.onLookJoystickPointerEnd);
 
     this.upButton.addEventListener('pointerdown', this.onUpPointerDown);
     this.upButton.addEventListener('pointerup', this.onUpPointerEnd);
@@ -172,6 +204,13 @@ export class MobileExploreControls {
     };
   }
 
+  getLookInput(): {lookX: number; lookY: number} {
+    return {
+      lookX: this.lookX,
+      lookY: this.lookY,
+    };
+  }
+
   private onJoystickPointerDown = (event: PointerEvent): void => {
     event.preventDefault();
     event.stopPropagation();
@@ -219,6 +258,55 @@ export class MobileExploreControls {
     const visualX = input.x * maxRadius;
     const visualY = -input.y * maxRadius;
     this.knobEl.style.transform = `translate3d(${visualX.toFixed(1)}px, ${visualY.toFixed(1)}px, 0px)`;
+  }
+
+  private onLookJoystickPointerDown = (event: PointerEvent): void => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.lookJoystickPointerId !== null) return;
+    this.lookJoystickPointerId = event.pointerId;
+    try {
+      this.lookJoystickEl.setPointerCapture(event.pointerId);
+    } catch {
+      // Synthetic events in tests
+    }
+    this.lookJoystickEl.classList.add('is-active');
+    this.updateLookJoystickFromPointer(event.clientX, event.clientY);
+  };
+
+  private onLookJoystickPointerMove = (event: PointerEvent): void => {
+    if (event.pointerId !== this.lookJoystickPointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.updateLookJoystickFromPointer(event.clientX, event.clientY);
+  };
+
+  private onLookJoystickPointerEnd = (event: PointerEvent): void => {
+    if (event.pointerId !== this.lookJoystickPointerId) return;
+    event.stopPropagation();
+    this.lookJoystickPointerId = null;
+    this.lookX = 0;
+    this.lookY = 0;
+    this.lookKnobEl.style.transform = 'translate3d(0px, 0px, 0px)';
+    this.lookJoystickEl.classList.remove('is-active');
+  };
+
+  private updateLookJoystickFromPointer(clientX: number, clientY: number): void {
+    const rect = this.lookJoystickEl.getBoundingClientRect();
+    const centerX = rect.left + rect.width * 0.5;
+    const centerY = rect.top + rect.height * 0.5;
+    const maxRadius = Math.max(24, rect.width * 0.34);
+
+    const dx = clientX - centerX;
+    const dy = clientY - centerY;
+    const input = computeJoystickInput(dx, dy, maxRadius, 0.08);
+
+    this.lookX = input.x;
+    this.lookY = input.y;
+
+    const visualX = input.x * maxRadius;
+    const visualY = -input.y * maxRadius;
+    this.lookKnobEl.style.transform = `translate3d(${visualX.toFixed(1)}px, ${visualY.toFixed(1)}px, 0px)`;
   }
 
   private onUpPointerDown = (event: PointerEvent): void => {
@@ -315,6 +403,12 @@ export class MobileExploreControls {
     this.knobEl.style.transform = 'translate3d(0px, 0px, 0px)';
     this.joystickEl.classList.remove('is-active');
 
+    this.lookJoystickPointerId = null;
+    this.lookX = 0;
+    this.lookY = 0;
+    this.lookKnobEl.style.transform = 'translate3d(0px, 0px, 0px)';
+    this.lookJoystickEl.classList.remove('is-active');
+
     this.upPointers.clear();
     this.downPointers.clear();
     this.upButton.classList.remove('is-active');
@@ -328,6 +422,12 @@ export class MobileExploreControls {
     this.joystickEl.removeEventListener('pointerup', this.onJoystickPointerEnd);
     this.joystickEl.removeEventListener('pointercancel', this.onJoystickPointerEnd);
     this.joystickEl.removeEventListener('lostpointercapture', this.onJoystickPointerEnd);
+
+    this.lookJoystickEl.removeEventListener('pointerdown', this.onLookJoystickPointerDown);
+    this.lookJoystickEl.removeEventListener('pointermove', this.onLookJoystickPointerMove);
+    this.lookJoystickEl.removeEventListener('pointerup', this.onLookJoystickPointerEnd);
+    this.lookJoystickEl.removeEventListener('pointercancel', this.onLookJoystickPointerEnd);
+    this.lookJoystickEl.removeEventListener('lostpointercapture', this.onLookJoystickPointerEnd);
 
     this.upButton.removeEventListener('pointerdown', this.onUpPointerDown);
     this.upButton.removeEventListener('pointerup', this.onUpPointerEnd);
