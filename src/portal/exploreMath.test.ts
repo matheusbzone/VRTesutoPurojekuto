@@ -8,6 +8,7 @@ import {
   computeJoystickInput,
   computeLookJoystickRotation,
   computePitchYawFromDrag,
+  resolveRoomCollision,
 } from './exploreMath';
 
 test('computeJoystickInput respects deadzone, clamps to unit circle, and maps up to +y', () => {
@@ -102,4 +103,33 @@ test('applyAngularDeltas adds deltas and clamps pitch to maxPitch', () => {
 
   const clamped = applyAngularDeltas(0, 1.4, 0, 0.5, 1.41);
   assert.equal(clamped.pitch, 1.41);
+});
+
+test('resolveRoomCollision blocks walking through window wall and clamps within room', () => {
+  // Trying to walk far to the left (out the window into the forest)
+  const pos = {x: -1.5, y: 1.5, z: 0};
+  const blocked = resolveRoomCollision(pos, {dx: -2.0, dz: 0}, 0.25);
+  // minX is -2.05, with playerRadius 0.25, max left is -1.80
+  assert.ok(blocked.x >= -1.80);
+  assert.equal(blocked.y, 1.50);
+});
+
+test('resolveRoomCollision blocks backing up into the sofa', () => {
+  // Player at (0, 1.5, 0) tries to walk back into the sofa at z in [0.35, 1.65]
+  const pos = {x: 0, y: 1.5, z: 0};
+  const blocked = resolveRoomCollision(pos, {dx: 0, dz: 0.8}, 0.25);
+  // Should be stopped in front of the sofa (minZ 0.35 - 0.25 = 0.10)
+  assert.ok(blocked.z <= 0.11);
+  assert.equal(blocked.y, 1.50);
+});
+
+test('resolveRoomCollision prevents penetrating the round coffee table', () => {
+  // Table at (0.06, -1.29) with radius 0.62.
+  // Player at (0.06, 1.5, -0.2) walks forward toward table center.
+  const pos = {x: 0.06, y: 1.5, z: -0.2};
+  const blocked = resolveRoomCollision(pos, {dx: 0, dz: -1.0}, 0.25);
+  const distToTable = Math.hypot(blocked.x - 0.06, blocked.z - -1.29);
+  // Minimum distance should be table radius + player radius = 0.62 + 0.25 = 0.87
+  assert.ok(distToTable >= 0.86);
+  assert.equal(blocked.y, 1.50);
 });

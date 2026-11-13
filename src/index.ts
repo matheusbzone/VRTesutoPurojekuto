@@ -17,6 +17,7 @@ import {
   computeExploreMovement,
   computeLookJoystickRotation,
   computePitchYawFromDrag,
+  resolveRoomCollision,
 } from './portal/exploreMath';
 import {computeProximityAudioState} from './portal/portalMath';
 
@@ -335,27 +336,46 @@ class AetherGateExperience extends xb.Script {
       this.portal.alienWorld.setSkyCenter(_skyLocalCam);
     } else {
       const moveInput = this.exploreControls.getMoveInput();
-      if (moveInput.moveX !== 0 || moveInput.moveZ !== 0) {
+      const kbForward =
+        this.heldKeys.has('KeyW') || this.heldKeys.has('ArrowUp')
+          ? 1
+          : this.heldKeys.has('KeyS') || this.heldKeys.has('ArrowDown')
+            ? -1
+            : 0;
+      const kbStrafe =
+        this.heldKeys.has('KeyD') || this.heldKeys.has('ArrowRight')
+          ? 1
+          : this.heldKeys.has('KeyA') || this.heldKeys.has('ArrowLeft')
+            ? -1
+            : 0;
+
+      const totalMoveX = Math.max(-1, Math.min(1, moveInput.moveX + kbStrafe));
+      const totalMoveZ = Math.max(-1, Math.min(1, moveInput.moveZ + kbForward));
+
+      if (totalMoveX !== 0 || totalMoveZ !== 0) {
         _exploreEuler.setFromQuaternion(cam.quaternion, 'YXZ');
         const delta = computeExploreMovement(
           _exploreEuler.y,
-          {moveX: moveInput.moveX, moveZ: moveInput.moveZ, vertical: 0},
+          {moveX: totalMoveX, moveZ: totalMoveZ, vertical: 0},
           2.6,
           0,
           dt
         );
-        const desiredPos = clampRoomPosition({
-          x: cam.position.x + delta.dx,
-          y: cam.position.y,
-          z: cam.position.z + delta.dz,
-        });
+        const resolvedPos = resolveRoomCollision(
+          cam.position,
+          {dx: delta.dx, dz: delta.dz},
+          0.25
+        );
 
-        _roomDesiredPos.set(desiredPos.x, desiredPos.y, desiredPos.z);
+        cam.position.set(resolvedPos.x, resolvedPos.y, resolvedPos.z);
+        _roomDesiredPos.set(resolvedPos.x, resolvedPos.y, resolvedPos.z);
         if (xb.core.simulatorRunning && xb.core.simulator) {
           xb.core.simulator.moveUser(_roomDesiredPos);
-        } else {
-          cam.position.copy(_roomDesiredPos);
         }
+      } else {
+        // Keep camera grounded on the floor and locked within safe room boundaries
+        const clampedIdle = resolveRoomCollision(cam.position, {dx: 0, dz: 0}, 0.25);
+        cam.position.set(clampedIdle.x, clampedIdle.y, clampedIdle.z);
       }
     }
 
@@ -415,6 +435,9 @@ class AetherGateExperience extends xb.Script {
 document.addEventListener('DOMContentLoaded', async () => {
   const isSoftwareGl = detectSoftwareWebGL();
   const options = new xb.Options();
+
+  // Enable simulator navmesh constraints so the camera respects room walls and furniture.
+  options.simulator.navMesh.enabled = true;
 
   // Stencil buffer MUST be enabled so the portal doorway masks the hidden alien world.
   options.stencil = true;
