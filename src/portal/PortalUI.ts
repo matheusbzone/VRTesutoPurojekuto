@@ -3,6 +3,7 @@ import * as xb from 'xrblocks';
 export interface PortalUIOptions {
   onRecenter: () => void;
   onToggleAudio: () => boolean;
+  onToggleExplore: () => boolean;
 }
 
 /**
@@ -12,9 +13,11 @@ export interface PortalUIOptions {
 export function createPortalControlCard({
   onRecenter,
   onToggleAudio,
+  onToggleExplore,
 }: PortalUIOptions): {
   card: xb.UICard;
   setModeLabel: (mode: string) => void;
+  setExploreActive: (active: boolean) => void;
 } {
   let muted = false;
 
@@ -34,6 +37,17 @@ export function createPortalControlCard({
       lineHeight: 1.3,
       textAlign: 'center',
       opacity: 0.82,
+    },
+  });
+
+  const exploreButton = new xb.UIButton({
+    label: 'Explorar (Sem AR)',
+    icon: 'explore',
+    ariaLabel: 'Explorar mundo sem AR',
+    style: {width: '100%'},
+    onClick: () => {
+      const active = onToggleExplore();
+      exploreButton.label = active ? 'Voltar ao Portal AR' : 'Explorar (Sem AR)';
     },
   });
 
@@ -73,6 +87,7 @@ export function createPortalControlCard({
       new xb.UIExitButton(),
       title,
       modeBadge,
+      exploreButton,
       recenterButton,
       audioButton,
     ],
@@ -85,6 +100,9 @@ export function createPortalControlCard({
     card,
     setModeLabel: (modeText: string) => {
       modeBadge.text = modeText;
+    },
+    setExploreActive: (active: boolean) => {
+      exploreButton.label = active ? 'Voltar ao Portal AR' : 'Explorar (Sem AR)';
     },
   };
 }

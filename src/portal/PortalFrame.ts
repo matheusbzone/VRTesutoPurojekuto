@@ -255,8 +255,11 @@ export class PortalFrame extends xb.Script {
   private energyRimMaterial!: THREE.ShaderMaterial;
   private veilMaterial!: THREE.ShaderMaterial;
   private backMirrorMaterial!: THREE.ShaderMaterial;
+  private stencilMaskMesh!: THREE.Mesh;
+  private backMirrorMesh!: THREE.Mesh;
 
   private activeMode: PortalInteractionMode = 'idle';
+  private exploreMode = false;
   private elapsed = 0;
 
   constructor() {
@@ -302,12 +305,29 @@ export class PortalFrame extends xb.Script {
     return this.activeMode;
   }
 
+  setExploreMode(enabled: boolean): void {
+    this.exploreMode = enabled;
+    this.alienWorld.setStencilEnabled(!enabled);
+    if (this.stencilMaskMesh) {
+      this.stencilMaskMesh.visible = !enabled;
+    }
+    if (this.backMirrorMesh) {
+      this.backMirrorMesh.visible = !enabled;
+    }
+    if (enabled) {
+      this.setPortalScale(1.0);
+    } else {
+      this.alienWorld.scale.setScalar(1 / Math.max(0.45, this.scale.x));
+      this.alienWorld.setSkyCenter(new THREE.Vector3(0, 0, -4.0));
+    }
+  }
+
   setPortalScale(nextScale: number): void {
     const clamped = Math.min(2.6, Math.max(0.45, nextScale));
     this.scale.setScalar(clamped);
     // Keep the alien dimension at true physical scale so resizing the doorway
     // expands the window aperture onto the world rather than shrinking islands.
-    this.alienWorld.scale.setScalar(1 / clamped);
+    this.alienWorld.scale.setScalar(this.exploreMode ? 1 : 1 / clamped);
   }
 
   override onObjectManipulate(event: xb.ManipulationEvent): void {
@@ -317,7 +337,7 @@ export class PortalFrame extends xb.Script {
       else if (event.action === 'scale') {
         this.activeMode = 'resize';
         const s = this.scale.x;
-        this.alienWorld.scale.setScalar(1 / Math.max(0.45, s));
+        this.alienWorld.scale.setScalar(this.exploreMode ? 1 : 1 / Math.max(0.45, s));
       }
     } else {
       this.activeMode = 'idle';
@@ -545,13 +565,13 @@ export class PortalFrame extends xb.Script {
       })
     );
 
-    const maskMesh = new THREE.Mesh(maskGeo, maskMat);
-    maskMesh.name = 'PortalStencilAperture';
-    maskMesh.position.set(0, 0, 0);
-    maskMesh.renderOrder = 1;
+    this.stencilMaskMesh = new THREE.Mesh(maskGeo, maskMat);
+    this.stencilMaskMesh.name = 'PortalStencilAperture';
+    this.stencilMaskMesh.position.set(0, 0, 0);
+    this.stencilMaskMesh.renderOrder = 1;
     // Allow pointing rays to pass freely into/through the open doorway
-    maskMesh.xb = {pointerEvents: 'none'};
-    this.add(maskMesh);
+    this.stencilMaskMesh.xb = {pointerEvents: 'none'};
+    this.add(this.stencilMaskMesh);
   }
 
   private buildReversePortalMirror(): void {
@@ -589,12 +609,12 @@ export class PortalFrame extends xb.Script {
         side: THREE.FrontSide,
       })
     );
-    const backMesh = new THREE.Mesh(backGeo, this.backMirrorMaterial);
-    backMesh.position.set(0, 0, -0.01);
-    backMesh.rotation.y = Math.PI;
-    backMesh.renderOrder = 0;
-    backMesh.xb = {manipulationHandle: {action: 'translate'}};
-    this.add(backMesh);
+    this.backMirrorMesh = new THREE.Mesh(backGeo, this.backMirrorMaterial);
+    this.backMirrorMesh.position.set(0, 0, -0.01);
+    this.backMirrorMesh.rotation.y = Math.PI;
+    this.backMirrorMesh.renderOrder = 0;
+    this.backMirrorMesh.xb = {manipulationHandle: {action: 'translate'}};
+    this.add(this.backMirrorMesh);
   }
 
   private buildCornerResizeNodes(): void {

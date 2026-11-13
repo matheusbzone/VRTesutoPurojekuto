@@ -48,6 +48,7 @@ export class AlienWorld extends THREE.Group {
   private readonly islands: FloatingIslandEntry[] = [];
   private readonly floatingCrystals: FloatingCrystalEntry[] = [];
   private readonly astrolabeRings: THREE.Mesh[] = [];
+  private skyMesh!: THREE.Mesh;
   private skyMaterial!: THREE.ShaderMaterial;
   private particleMaterial!: THREE.ShaderMaterial;
   private crystalMaterials: THREE.MeshPhysicalMaterial[] = [];
@@ -61,6 +62,22 @@ export class AlienWorld extends THREE.Group {
     this.buildFloatingIslands();
     this.buildAstrolabeRings();
     this.buildDriftingParticles();
+  }
+
+  setStencilEnabled(enabled: boolean): void {
+    for (const mat of this.materials) {
+      if (enabled) {
+        applyPortalStencil(mat);
+      } else {
+        mat.stencilWrite = false;
+        mat.stencilFunc = THREE.AlwaysStencilFunc;
+      }
+      mat.needsUpdate = true;
+    }
+  }
+
+  setSkyCenter(localPos: THREE.Vector3): void {
+    this.skyMesh.position.copy(localPos);
   }
 
   private trackGeo<T extends THREE.BufferGeometry>(geo: T): T {
@@ -194,11 +211,11 @@ export class AlienWorld extends THREE.Group {
     });
     this.trackMat(this.skyMaterial);
 
-    const skyMesh = new THREE.Mesh(geo, this.skyMaterial);
-    skyMesh.position.set(0, 0, -4.0);
-    skyMesh.renderOrder = 2;
-    skyMesh.xb = {pointerEvents: 'none'};
-    this.add(skyMesh);
+    this.skyMesh = new THREE.Mesh(geo, this.skyMaterial);
+    this.skyMesh.position.set(0, 0, -4.0);
+    this.skyMesh.renderOrder = 2;
+    this.skyMesh.xb = {pointerEvents: 'none'};
+    this.add(this.skyMesh);
   }
 
   private createRockTexture(): THREE.CanvasTexture {

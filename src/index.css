@@ -117,3 +117,209 @@ button {
 .XRButton:active {
   transform: scale(0.98);
 }
+
+#explore-mode-bar {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top));
+  right: max(14px, env(safe-area-inset-right));
+  z-index: 30;
+  pointer-events: none;
+}
+
+#explore-mode-bar[hidden] {
+  display: none;
+}
+
+.explore-mode-btn {
+  pointer-events: auto;
+  appearance: none;
+  border: 1px solid rgba(79, 242, 255, 0.55);
+  background: rgba(14, 10, 34, 0.86);
+  color: #e6fbff;
+  border-radius: 9999px;
+  padding: 10px 16px;
+  font-family: 'Google Sans', 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  box-shadow: 0 6px 20px rgba(6, 4, 20, 0.55);
+  touch-action: manipulation;
+  user-select: none;
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    transform 0.12s ease;
+}
+
+.explore-mode-btn:hover {
+  background: rgba(25, 19, 58, 0.94);
+  border-color: rgba(114, 248, 255, 0.9);
+}
+
+.explore-mode-btn:active {
+  transform: scale(0.97);
+}
+
+.explore-mode-btn.is-active {
+  background: rgba(34, 20, 74, 0.92);
+  border-color: rgba(217, 107, 255, 0.78);
+  color: #f6e4ff;
+}
+
+#mobile-explore-hud {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+  user-select: none;
+}
+
+#mobile-explore-hud[hidden] {
+  display: none;
+}
+
+#explore-joystick {
+  position: fixed;
+  left: max(18px, env(safe-area-inset-left));
+  bottom: max(76px, calc(62px + env(safe-area-inset-bottom)));
+  width: 128px;
+  height: 128px;
+  pointer-events: auto;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+}
+
+#explore-joystick.is-active {
+  cursor: grabbing;
+}
+
+.joystick-ring {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(14, 10, 34, 0.72);
+  border: 2px solid rgba(79, 242, 255, 0.45);
+  box-shadow:
+    inset 0 0 22px rgba(79, 242, 255, 0.14),
+    0 8px 24px rgba(5, 3, 18, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#explore-joystick.is-active .joystick-ring {
+  border-color: rgba(98, 247, 255, 0.88);
+  box-shadow:
+    inset 0 0 26px rgba(79, 242, 255, 0.25),
+    0 8px 26px rgba(5, 3, 18, 0.65);
+}
+
+.joystick-crosshair {
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  border: 1px dashed rgba(190, 165, 255, 0.28);
+  pointer-events: none;
+}
+
+.joystick-knob {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #9ffbff 0%, #37d6f5 52%, #6d47d9 100%);
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 4px 14px rgba(24, 180, 224, 0.45);
+  pointer-events: none;
+  transform: translate3d(0px, 0px, 0px);
+  will-change: transform;
+}
+
+#explore-elevation {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(22px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.elev-btn {
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  width: 78px;
+  height: 62px;
+  border-radius: 16px;
+  border: 2px solid rgba(79, 242, 255, 0.5);
+  background: rgba(14, 10, 34, 0.82);
+  color: #e9fcff;
+  font-family: 'Google Sans', 'Segoe UI', Roboto, sans-serif;
+  text-transform: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  box-shadow: 0 8px 22px rgba(5, 3, 18, 0.55);
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease,
+    transform 0.1s ease;
+}
+
+.elev-btn:hover {
+  border-color: rgba(114, 248, 255, 0.85);
+  background: rgba(24, 18, 54, 0.9);
+}
+
+.elev-btn.is-active,
+.elev-btn:active {
+  background: rgba(45, 29, 92, 0.94);
+  border-color: #62f7ff;
+  transform: scale(0.95);
+}
+
+.elev-arrow {
+  font-size: 0.95rem;
+  line-height: 1;
+  color: #62f7ff;
+}
+
+.elev-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+}
+
+@media (max-width: 600px) {
+  #explore-joystick {
+    width: 118px;
+    height: 118px;
+    left: max(14px, env(safe-area-inset-left));
+    bottom: max(74px, calc(62px + env(safe-area-inset-bottom)));
+  }
+
+  .joystick-knob {
+    width: 48px;
+    height: 48px;
+  }
+
+  #explore-elevation {
+    right: max(14px, env(safe-area-inset-right));
+    bottom: max(18px, env(safe-area-inset-bottom));
+    gap: 10px;
+  }
+
+  .elev-btn {
+    width: 72px;
+    height: 58px;
+  }
+}
+

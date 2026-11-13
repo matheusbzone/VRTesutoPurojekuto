@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 import * as xb from 'xrblocks';
 
+import {MobileExploreControls} from './portal/MobileExploreControls';
 import {PortalAudio} from './portal/PortalAudio';
 import {
   PORTAL_OPENING_HEIGHT,
@@ -9,10 +10,20 @@ import {
   PortalFrame,
 } from './portal/PortalFrame';
 import {createPortalControlCard} from './portal/PortalUI';
+import {
+  clampExplorePosition,
+  computeExploreMovement,
+  computePitchYawFromDrag,
+} from './portal/exploreMath';
 import {computeProximityAudioState} from './portal/portalMath';
 
 const _invPortalMatrix = new THREE.Matrix4();
 const _localCamPos = new THREE.Vector3();
+const _skyLocalCam = new THREE.Vector3();
+const _exploreStartPos = new THREE.Vector3();
+const _exploreLookAt = new THREE.Vector3();
+const _exploreCenter = new THREE.Vector3();
+const _exploreEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 
 function detectSoftwareWebGL(): boolean {
   if (typeof document === 'undefined') return false;
@@ -33,19 +44,29 @@ function getActiveCamera(): THREE.Camera {
 }
 
 /**
- * Mixed reality "Portal to Another World" experience.
- * Spawns a glowing floating doorway with a stencil-gated alien dimension
- * inside, hand-tracking edge/corner/arc manipulation, and proximity-reactive
- * ambient space soundscapes.
+ * Mixed reality "Portal to Another World" experience with a full-world "Sem AR"
+ * exploration mode controlled via an on-screen virtual joystick and Subir / Descer
+ * vertical elevation buttons.
  */
 class AetherGateExperience extends xb.Script {
   private portal!: PortalFrame;
   private controlCard!: xb.UICard;
   private audio!: PortalAudio;
+  private exploreControls!: MobileExploreControls;
   private setModeLabel!: (text: string) => void;
+  private setCardExploreActive!: (active: boolean) => void;
   private lastModeText = '';
   private pmremEnvTex: THREE.Texture | null = null;
+  private exploreMode = false;
+  private pendingExplore = false;
+  private readonly heldKeys = new Set<string>();
+
   private audioUnlockListener = () => this.audio?.unlockAndStart();
+
+  constructor(initialExplore = false) {
+    super();
+    this.pendingExplore = initialExplore;
+  }
 
   override init(): void {
     this.setupLightingAndEnvironment();
@@ -65,14 +86,97 @@ class AetherGateExperience extends xb.Script {
         this.audio.unlockAndStart();
         return this.audio.toggleMute();
       },
+      onToggleExplore: () => {
+        this.audio.unlockAndStart();
+        void this.toggleExploreMode();
+        return !this.exploreMode;
+      },
     });
     this.controlCard = ui.card;
     this.setModeLabel = ui.setModeLabel;
+    this.setCardExploreActive = ui.setExploreActive;
     this.add(this.controlCard);
 
+    this.exploreControls = new MobileExploreControls({
+      onToggleExplore: async () => {
+        this.audio.unlockAndStart();
+        await this.toggleExploreMode();
+      },
+      onLookDrag: (dx, dy) => this.applyLookDrag(dx, dy),
+    });
+
     window.addEventListener('pointerdown', this.audioUnlockListener, {passive: true});
-    window.addEventListener('keydown', this.audioUnlockListener, {passive: true});
+    window.addEventListener('keydown', this.handleWindowKeyDown, {passive: true});
+    window.addEventListener('keyup', this.handleWindowKeyUp, {passive: true});
+    window.addEventListener('blur', this.onWindowBlur);
+
     document.body.dataset.state = 'ready';
+    document.body.dataset.mode = 'portal';
+  }
+
+  private handleWindowKeyDown = (event: KeyboardEvent): void => {
+    this.audioUnlockListener();
+    this.heldKeys.add(event.code);
+  };
+
+  private handleWindowKeyUp = (event: KeyboardEvent): void => {
+    this.heldKeys.delete(event.code);
+  };
+
+  private onWindowBlur = (): void => {
+    this.heldKeys.clear();
+  };
+
+  private async toggleExploreMode(): Promise<void> {
+    if (!xb.core.simulatorRunning) {
+      this.pendingExplore = true;
+      await xb.core.startSimulator();
+      return;
+    }
+    this.setExploreMode(!this.exploreMode);
+  }
+
+  private setExploreMode(enabled: boolean): void {
+    this.exploreMode = enabled;
+    this.portal.setExploreMode(enabled);
+    this.exploreControls.setExploreMode(enabled);
+    this.setCardExploreActive(enabled);
+    document.body.dataset.mode = enabled ? 'explore' : 'portal';
+
+    const cam = getActiveCamera();
+    if (enabled) {
+      xb.core.simulator?.userInterface?.notifyUserInteraction?.();
+      this.controlCard.visible = false;
+      this.portal.updateWorldMatrix(true, false);
+      // Enter through the portal threshold overlooking the central floating island
+      _exploreStartPos.set(0, 0.25, -1.35).applyMatrix4(this.portal.matrixWorld);
+      _exploreLookAt.set(0, 0.05, -4.4).applyMatrix4(this.portal.matrixWorld);
+      cam.position.copy(_exploreStartPos);
+      cam.lookAt(_exploreLookAt);
+      this.portal.alienWorld.updateWorldMatrix(true, false);
+      this.portal.alienWorld.worldToLocal(_skyLocalCam.copy(cam.position));
+      this.portal.alienWorld.setSkyCenter(_skyLocalCam);
+    } else {
+      this.controlCard.visible = true;
+      cam.position.set(0, xb.core.user?.height ?? 1.5, 0);
+      cam.lookAt(0, 1.42, -1.65);
+      this.recenterExperience();
+    }
+  }
+
+  private applyLookDrag(deltaX: number, deltaY: number): void {
+    if (!this.exploreMode) return;
+    const cam = getActiveCamera();
+    if (!cam) return;
+    _exploreEuler.setFromQuaternion(cam.quaternion, 'YXZ');
+    const {yaw, pitch} = computePitchYawFromDrag(
+      _exploreEuler.y,
+      _exploreEuler.x,
+      deltaX,
+      deltaY
+    );
+    _exploreEuler.set(pitch, yaw, 0, 'YXZ');
+    cam.quaternion.setFromEuler(_exploreEuler);
   }
 
   private recenterExperience(): void {
@@ -112,11 +216,19 @@ class AetherGateExperience extends xb.Script {
 
   override onSimulatorStarted(): void {
     document.body.dataset.state = 'simulator';
+    this.exploreControls.setXRSessionActive(false);
     this.recenterExperience();
+    if (this.pendingExplore) {
+      this.pendingExplore = false;
+      this.setExploreMode(true);
+    }
   }
 
   override onXRSessionStarted(): void {
     document.body.dataset.state = 'xr';
+    this.pendingExplore = false;
+    this.exploreControls.setXRSessionActive(true);
+    this.setExploreMode(false);
     this.audio.unlockAndStart();
     this.recenterExperience();
   }
@@ -129,6 +241,51 @@ class AetherGateExperience extends xb.Script {
     const cam = getActiveCamera();
     if (!cam) return;
 
+    const dt = Math.min(0.05, Math.max(0.001, xb.getDeltaTime()));
+
+    if (this.exploreMode) {
+      const moveInput = this.exploreControls.getMoveInput();
+      const kbUp = this.heldKeys.has('Space') || this.heldKeys.has('PageUp') ? 1 : 0;
+      const kbDown =
+        this.heldKeys.has('ShiftLeft') ||
+        this.heldKeys.has('ShiftRight') ||
+        this.heldKeys.has('PageDown')
+          ? 1
+          : 0;
+      const vertical = Math.max(-1, Math.min(1, moveInput.vertical + kbUp - kbDown));
+
+      _exploreEuler.setFromQuaternion(cam.quaternion, 'YXZ');
+      const delta = computeExploreMovement(
+        _exploreEuler.y,
+        {moveX: moveInput.moveX, moveZ: moveInput.moveZ, vertical},
+        3.6,
+        2.6,
+        dt
+      );
+
+      this.portal.updateWorldMatrix(true, false);
+      _exploreCenter.set(0, 0, -4.4).applyMatrix4(this.portal.matrixWorld);
+      const clamped = clampExplorePosition(
+        {
+          x: cam.position.x + delta.dx,
+          y: cam.position.y + delta.dy,
+          z: cam.position.z + delta.dz,
+        },
+        {
+          centerX: _exploreCenter.x,
+          centerZ: _exploreCenter.z,
+          maxRadius: 15.0,
+          minY: this.portal.position.y - 2.8,
+          maxY: this.portal.position.y + 8.5,
+        }
+      );
+      cam.position.set(clamped.x, clamped.y, clamped.z);
+
+      this.portal.alienWorld.updateWorldMatrix(true, false);
+      this.portal.alienWorld.worldToLocal(_skyLocalCam.copy(cam.position));
+      this.portal.alienWorld.setSkyCenter(_skyLocalCam);
+    }
+
     this.portal.updateWorldMatrix(true, false);
     _invPortalMatrix.copy(this.portal.matrixWorld).invert();
     _localCamPos.copy(cam.position).applyMatrix4(_invPortalMatrix);
@@ -140,12 +297,14 @@ class AetherGateExperience extends xb.Script {
       z: _localCamPos.z * scale,
     };
 
-    const audioState = computeProximityAudioState(
-      metricLocalPos,
-      PORTAL_OPENING_WIDTH * 0.5 * scale,
-      PORTAL_OPENING_HEIGHT * 0.5 * scale
-    );
-    const stereoPan = -metricLocalPos.x * 0.35;
+    const audioState = this.exploreMode
+      ? computeProximityAudioState({x: 0, y: 0, z: 0.25}, 0.5, 0.8)
+      : computeProximityAudioState(
+          metricLocalPos,
+          PORTAL_OPENING_WIDTH * 0.5 * scale,
+          PORTAL_OPENING_HEIGHT * 0.5 * scale
+        );
+    const stereoPan = this.exploreMode ? 0 : -metricLocalPos.x * 0.35;
     this.audio.updateProximity(audioState, stereoPan);
 
     const mode = this.portal.getInteractionMode();
@@ -166,11 +325,15 @@ class AetherGateExperience extends xb.Script {
     document.body.dataset.portalDistance = audioState.distance.toFixed(2);
     document.body.dataset.portalScale = scale.toFixed(2);
     document.body.dataset.audioGain = this.audio.getLastGain().toFixed(2);
+    document.body.dataset.camPos = `${cam.position.x.toFixed(2)},${cam.position.y.toFixed(2)},${cam.position.z.toFixed(2)}`;
   }
 
   override dispose(): void {
     window.removeEventListener('pointerdown', this.audioUnlockListener);
-    window.removeEventListener('keydown', this.audioUnlockListener);
+    window.removeEventListener('keydown', this.handleWindowKeyDown);
+    window.removeEventListener('keyup', this.handleWindowKeyUp);
+    window.removeEventListener('blur', this.onWindowBlur);
+    this.exploreControls?.dispose();
     this.audio?.dispose();
     this.pmremEnvTex?.dispose();
   }
@@ -195,11 +358,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   options.xrButton.showEnterSimulatorButton = true;
 
   const params = new URLSearchParams(window.location.search);
-  if (params.has('autostart')) {
+  const initialExplore = params.has('explore');
+  if (params.has('autostart') || initialExplore) {
     options.xrButton.alwaysAutostartSimulator = true;
   }
 
-  xb.add(new AetherGateExperience());
+  xb.add(new AetherGateExperience(initialExplore));
   await xb.init(options);
 
   if (isSoftwareGl && xb.core.renderer instanceof THREE.WebGLRenderer) {
