@@ -117,6 +117,27 @@ export function clampExplorePosition(
 }
 
 /**
+ * Clamps player position within the simulator room bounds.
+ */
+export function clampRoomPosition(
+  pos: {x: number; y: number; z: number},
+  maxRadius = 8.0,
+  minY = 0.5,
+  maxY = 2.4
+): {x: number; y: number; z: number} {
+  const horizDist = Math.hypot(pos.x, pos.z);
+  let x = pos.x;
+  let z = pos.z;
+  if (horizDist > maxRadius && horizDist > 1e-4) {
+    const scale = maxRadius / horizDist;
+    x = pos.x * scale;
+    z = pos.z * scale;
+  }
+  const y = Math.min(maxY, Math.max(minY, pos.y));
+  return {x, y, z};
+}
+
+/**
  * Updates yaw and pitch from pointer drag deltas with vertical pitch clamping.
  */
 export function computePitchYawFromDrag(

@@ -12,6 +12,7 @@ import {
 import {createPortalControlCard} from './portal/PortalUI';
 import {
   clampExplorePosition,
+  clampRoomPosition,
   computeExploreMovement,
   computePitchYawFromDrag,
 } from './portal/exploreMath';
@@ -23,7 +24,24 @@ const _skyLocalCam = new THREE.Vector3();
 const _exploreStartPos = new THREE.Vector3();
 const _exploreLookAt = new THREE.Vector3();
 const _exploreCenter = new THREE.Vector3();
+const _roomDesiredPos = new THREE.Vector3();
 const _exploreEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+const _raycaster = new THREE.Raycaster();
+const _pointerNorm = new THREE.Vector2();
+
+function isPointerOverObjects(
+  clientX: number,
+  clientY: number,
+  camera: THREE.Camera,
+  objects: THREE.Object3D[]
+): boolean {
+  if (typeof window === 'undefined') return false;
+  _pointerNorm.x = (clientX / window.innerWidth) * 2 - 1;
+  _pointerNorm.y = -(clientY / window.innerHeight) * 2 + 1;
+  _raycaster.setFromCamera(_pointerNorm, camera);
+  const hits = _raycaster.intersectObjects(objects, true);
+  return hits.length > 0;
+}
 
 function detectSoftwareWebGL(): boolean {
   if (typeof document === 'undefined') return false;
@@ -103,6 +121,16 @@ class AetherGateExperience extends xb.Script {
         await this.toggleExploreMode();
       },
       onLookDrag: (dx, dy) => this.applyLookDrag(dx, dy),
+      canLookDrag: (event) => {
+        if (this.exploreMode) return true;
+        if (this.portal.getInteractionMode() !== 'idle') return false;
+        const cam = getActiveCamera();
+        if (!cam) return false;
+        return !isPointerOverObjects(event.clientX, event.clientY, cam, [
+          this.portal,
+          this.controlCard,
+        ]);
+      },
     });
 
     window.addEventListener('pointerdown', this.audioUnlockListener, {passive: true});
@@ -165,7 +193,7 @@ class AetherGateExperience extends xb.Script {
   }
 
   private applyLookDrag(deltaX: number, deltaY: number): void {
-    if (!this.exploreMode) return;
+    if (!this.exploreMode && this.portal.getInteractionMode() !== 'idle') return;
     const cam = getActiveCamera();
     if (!cam) return;
     _exploreEuler.setFromQuaternion(cam.quaternion, 'YXZ');
@@ -284,6 +312,30 @@ class AetherGateExperience extends xb.Script {
       this.portal.alienWorld.updateWorldMatrix(true, false);
       this.portal.alienWorld.worldToLocal(_skyLocalCam.copy(cam.position));
       this.portal.alienWorld.setSkyCenter(_skyLocalCam);
+    } else {
+      const moveInput = this.exploreControls.getMoveInput();
+      if (moveInput.moveX !== 0 || moveInput.moveZ !== 0) {
+        _exploreEuler.setFromQuaternion(cam.quaternion, 'YXZ');
+        const delta = computeExploreMovement(
+          _exploreEuler.y,
+          {moveX: moveInput.moveX, moveZ: moveInput.moveZ, vertical: 0},
+          2.6,
+          0,
+          dt
+        );
+        const desiredPos = clampRoomPosition({
+          x: cam.position.x + delta.dx,
+          y: cam.position.y,
+          z: cam.position.z + delta.dz,
+        });
+
+        _roomDesiredPos.set(desiredPos.x, desiredPos.y, desiredPos.z);
+        if (xb.core.simulatorRunning && xb.core.simulator) {
+          xb.core.simulator.moveUser(_roomDesiredPos);
+        } else {
+          cam.position.copy(_roomDesiredPos);
+        }
+      }
     }
 
     this.portal.updateWorldMatrix(true, false);

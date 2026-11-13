@@ -3,13 +3,14 @@ import {computeJoystickInput, type ExploreMoveInput} from './exploreMath';
 export interface MobileExploreControlsOptions {
   onToggleExplore: () => void | Promise<void>;
   onLookDrag: (deltaX: number, deltaY: number) => void;
+  canLookDrag?: (event: PointerEvent) => boolean;
 }
 
 /**
- * 2D DOM HUD for "Sem AR" (No-AR) exploration mode:
+ * 2D DOM HUD for mobile navigation and "Sem AR" exploration:
  * - Top-right mode toggle ("Explorar (Sem AR)" / "Voltar ao Portal AR")
- * - Bottom-left virtual analog joystick (horizontal forward/back/strafe)
- * - Bottom-right "Subir" / "Descer" hold buttons (+Y / -Y vertical flight)
+ * - Bottom-left virtual analog joystick (horizontal forward/back/strafe in room & alien world)
+ * - Bottom-right "Subir" / "Descer" hold buttons (+Y / -Y vertical flight in explore mode)
  * - Open-canvas 1-finger touch / primary-pointer drag for camera look
  */
 export class MobileExploreControls {
@@ -18,11 +19,13 @@ export class MobileExploreControls {
   private readonly hudRoot: HTMLDivElement;
   private readonly joystickEl: HTMLDivElement;
   private readonly knobEl: HTMLDivElement;
+  private readonly elevContainer: HTMLDivElement;
   private readonly upButton: HTMLButtonElement;
   private readonly downButton: HTMLButtonElement;
 
   private readonly onToggleExplore: () => void | Promise<void>;
   private readonly onLookDrag: (deltaX: number, deltaY: number) => void;
+  private readonly canLookDrag?: (event: PointerEvent) => boolean;
 
   private exploreActive = false;
   private xrSessionActive = false;
@@ -41,6 +44,7 @@ export class MobileExploreControls {
   constructor(options: MobileExploreControlsOptions) {
     this.onToggleExplore = options.onToggleExplore;
     this.onLookDrag = options.onLookDrag;
+    this.canLookDrag = options.canLookDrag;
 
     // 1. Top-right mode switch bar
     this.modeBar = document.createElement('div');
@@ -57,12 +61,12 @@ export class MobileExploreControls {
     this.modeBar.appendChild(this.toggleButton);
     document.body.appendChild(this.modeBar);
 
-    // 2. Mobile / No-AR HUD (Joystick + Subir/Descer)
+    // 2. Mobile HUD (Joystick + Subir/Descer)
     this.hudRoot = document.createElement('div');
     this.hudRoot.id = 'mobile-explore-hud';
-    this.hudRoot.hidden = true;
+    this.hudRoot.hidden = false;
 
-    // Bottom-left virtual analog joystick
+    // Bottom-left virtual analog joystick (always accessible on mobile / non-XR)
     this.joystickEl = document.createElement('div');
     this.joystickEl.id = 'explore-joystick';
     this.joystickEl.setAttribute('role', 'application');
@@ -82,9 +86,10 @@ export class MobileExploreControls {
     this.joystickEl.appendChild(ringEl);
     this.hudRoot.appendChild(this.joystickEl);
 
-    // Bottom-right Subir / Descer elevation buttons
-    const elevContainer = document.createElement('div');
-    elevContainer.id = 'explore-elevation';
+    // Bottom-right Subir / Descer elevation buttons (shown only in explore mode)
+    this.elevContainer = document.createElement('div');
+    this.elevContainer.id = 'explore-elevation';
+    this.elevContainer.hidden = true;
 
     this.upButton = document.createElement('button');
     this.upButton.id = 'btn-subir';
@@ -102,8 +107,8 @@ export class MobileExploreControls {
     this.downButton.innerHTML =
       '<span class="elev-arrow" aria-hidden="true">&#9660;</span><span class="elev-label">Descer</span>';
 
-    elevContainer.append(this.upButton, this.downButton);
-    this.hudRoot.appendChild(elevContainer);
+    this.elevContainer.append(this.upButton, this.downButton);
+    this.hudRoot.appendChild(this.elevContainer);
     document.body.appendChild(this.hudRoot);
 
     this.bindEvents();
@@ -140,18 +145,18 @@ export class MobileExploreControls {
 
   setExploreMode(active: boolean): void {
     this.exploreActive = active;
-    this.hudRoot.hidden = !active;
+    this.hudRoot.hidden = this.xrSessionActive;
+    this.elevContainer.hidden = !active;
     this.toggleButton.setAttribute('aria-pressed', active ? 'true' : 'false');
     this.toggleButton.textContent = active ? 'Voltar ao Portal AR' : 'Explorar (Sem AR)';
     this.toggleButton.classList.toggle('is-active', active);
-    if (!active) {
-      this.resetInputs();
-    }
+    this.resetInputs();
   }
 
   setXRSessionActive(active: boolean): void {
     this.xrSessionActive = active;
-    this.modeBar.hidden = active || this.xrSessionActive;
+    this.modeBar.hidden = active;
+    this.hudRoot.hidden = active;
     if (active) {
       this.setExploreMode(false);
     }
@@ -274,10 +279,11 @@ export class MobileExploreControls {
   }
 
   private onWindowPointerDown = (event: PointerEvent): void => {
-    if (!this.exploreActive) return;
+    if (this.xrSessionActive) return;
     // Ignore right-click mouse drags (SimulatorUserMode already uses right button)
     if (event.button === 2 || (event.buttons & 2) !== 0) return;
     if (this.shouldIgnoreLookTarget(event)) return;
+    if (this.canLookDrag && !this.canLookDrag(event)) return;
     if (this.lookPointerId !== null) return;
 
     this.lookPointerId = event.pointerId;
@@ -286,7 +292,7 @@ export class MobileExploreControls {
   };
 
   private onWindowPointerMove = (event: PointerEvent): void => {
-    if (!this.exploreActive || event.pointerId !== this.lookPointerId) return;
+    if (this.xrSessionActive || event.pointerId !== this.lookPointerId) return;
     const dx = event.clientX - this.lastLookX;
     const dy = event.clientY - this.lastLookY;
     this.lastLookX = event.clientX;

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   clampExplorePosition,
+  clampRoomPosition,
   computeExploreMovement,
   computeJoystickInput,
   computePitchYawFromDrag,
@@ -68,4 +69,16 @@ test('computePitchYawFromDrag clamps pitch safely within bounds', () => {
   const res = computePitchYawFromDrag(0, 0, 100, -5000, 0.005, 1.4);
   assert.ok(Math.abs(res.yaw - -0.5) < 1e-6);
   assert.equal(res.pitch, 1.4);
+});
+
+test('clampRoomPosition keeps player inside room radius and vertical limits', () => {
+  const inside = clampRoomPosition({x: 2, y: 1.5, z: 2}, 8.0);
+  assert.equal(inside.x, 2);
+  assert.equal(inside.y, 1.5);
+  assert.equal(inside.z, 2);
+
+  const outside = clampRoomPosition({x: 10, y: 3.0, z: 0}, 8.0);
+  assert.ok(Math.abs(outside.x - 8.0) < 1e-6);
+  assert.equal(outside.y, 2.4);
+  assert.equal(outside.z, 0);
 });

@@ -176,7 +176,16 @@ button {
 }
 
 #mobile-explore-hud[hidden] {
-  display: none;
+  display: none !important;
+}
+
+body[data-state='ready'] #mobile-explore-hud,
+body[data-state='ready'] #explore-mode-bar {
+  display: none !important;
+}
+
+#explore-elevation[hidden] {
+  display: none !important;
 }
 
 #explore-joystick {
