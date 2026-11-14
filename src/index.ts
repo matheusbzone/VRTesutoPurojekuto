@@ -4,6 +4,8 @@ import * as xb from 'xrblocks';
 
 import {MobileExploreControls} from './portal/MobileExploreControls';
 import {PortalAudio} from './portal/PortalAudio';
+import {HouseExpansion} from './portal/HouseExpansion';
+import {PlayerAbilities} from './portal/PlayerAbilities';
 import {
   PORTAL_OPENING_HEIGHT,
   PORTAL_OPENING_WIDTH,
@@ -73,6 +75,8 @@ class AetherGateExperience extends xb.Script {
   private portal!: PortalFrame;
   private controlCard!: xb.UICard;
   private audio!: PortalAudio;
+  private houseExpansion!: HouseExpansion;
+  private abilities!: PlayerAbilities;
   private exploreControls!: MobileExploreControls;
   private setModeLabel!: (text: string) => void;
   private setCardExploreActive!: (active: boolean) => void;
@@ -97,6 +101,18 @@ class AetherGateExperience extends xb.Script {
     // Spawn comfortably floating in front of the user at eye/chest height
     this.portal.position.set(0, 1.42, -1.65);
     this.add(this.portal);
+
+    // Architectural room expansion (Arcane Study & Sunroom Gallery)
+    this.houseExpansion = new HouseExpansion();
+    this.add(this.houseExpansion);
+
+    // First-person hands and abilities (plasma shot & telekinesis)
+    this.abilities = new PlayerAbilities({
+      audio: this.audio,
+      onGrabStateChange: (isHolding, itemName) => {
+        this.exploreControls.setHoldingState(isHolding, itemName);
+      },
+    });
 
     const ui = createPortalControlCard({
       onRecenter: () => {
@@ -134,20 +150,75 @@ class AetherGateExperience extends xb.Script {
           this.controlCard,
         ]);
       },
+      onTogglePowers: () => {
+        this.audio.unlockAndStart();
+        return this.abilities.toggleEnabled();
+      },
+      onShoot: () => {
+        const cam = getActiveCamera();
+        if (cam) this.abilities.shoot(cam);
+      },
+      onGrab: () => {
+        const cam = getActiveCamera();
+        if (cam) this.abilities.grabOrRelease(cam, this.houseExpansion.interactables);
+      },
     });
 
-    window.addEventListener('pointerdown', this.audioUnlockListener, {passive: true});
-    window.addEventListener('keydown', this.handleWindowKeyDown, {passive: true});
+    window.addEventListener('pointerdown', this.handleWindowPointerDown);
+    window.addEventListener('keydown', this.handleWindowKeyDown);
     window.addEventListener('keyup', this.handleWindowKeyUp, {passive: true});
     window.addEventListener('blur', this.onWindowBlur);
+    window.addEventListener('contextmenu', this.handleContextMenu);
 
     document.body.dataset.state = 'ready';
     document.body.dataset.mode = 'portal';
   }
 
+  private handleContextMenu = (event: MouseEvent): void => {
+    if (this.abilities?.isEnabled()) {
+      event.preventDefault();
+    }
+  };
+
+  private handleWindowPointerDown = (event: PointerEvent): void => {
+    this.audioUnlockListener();
+    if (!this.abilities?.isEnabled()) return;
+    if (event.pointerType !== 'mouse') return;
+
+    const cam = getActiveCamera();
+    if (!cam) return;
+
+    // Do not fire if clicking UI buttons or portal control card
+    if (isPointerOverObjects(event.clientX, event.clientY, cam, [this.controlCard, this.portal])) {
+      return;
+    }
+
+    if (event.button === 0) {
+      this.abilities.shoot(cam);
+    } else if (event.button === 2) {
+      event.preventDefault();
+      this.abilities.grabOrRelease(cam, this.houseExpansion.interactables);
+    }
+  };
+
   private handleWindowKeyDown = (event: KeyboardEvent): void => {
     this.audioUnlockListener();
     this.heldKeys.add(event.code);
+
+    if (event.code === 'KeyH') {
+      const active = this.abilities.toggleEnabled();
+      this.exploreControls.setPowersActive(active);
+    } else if (event.code === 'KeyF') {
+      if (this.abilities.isEnabled()) {
+        const cam = getActiveCamera();
+        if (cam) this.abilities.shoot(cam);
+      }
+    } else if (event.code === 'KeyE') {
+      if (this.abilities.isEnabled()) {
+        const cam = getActiveCamera();
+        if (cam) this.abilities.grabOrRelease(cam, this.houseExpansion.interactables);
+      }
+    }
   };
 
   private handleWindowKeyUp = (event: KeyboardEvent): void => {
@@ -272,7 +343,14 @@ class AetherGateExperience extends xb.Script {
     const cam = getActiveCamera();
     if (!cam) return;
 
+    if (this.abilities && this.abilities.handsGroup.parent !== cam) {
+      cam.add(this.abilities.handsGroup);
+    }
+
     const dt = Math.min(0.05, Math.max(0.001, xb.getDeltaTime()));
+
+    this.houseExpansion?.update(dt);
+    this.abilities?.update(dt, cam, this.houseExpansion.interactables);
 
     const lookInput = this.exploreControls.getLookInput();
     if (lookInput.lookX !== 0 || lookInput.lookY !== 0) {
@@ -422,11 +500,14 @@ class AetherGateExperience extends xb.Script {
   }
 
   override dispose(): void {
-    window.removeEventListener('pointerdown', this.audioUnlockListener);
+    window.removeEventListener('pointerdown', this.handleWindowPointerDown);
     window.removeEventListener('keydown', this.handleWindowKeyDown);
     window.removeEventListener('keyup', this.handleWindowKeyUp);
     window.removeEventListener('blur', this.onWindowBlur);
+    window.removeEventListener('contextmenu', this.handleContextMenu);
     this.exploreControls?.dispose();
+    this.abilities?.dispose();
+    this.houseExpansion?.dispose();
     this.audio?.dispose();
     this.pmremEnvTex?.dispose();
   }

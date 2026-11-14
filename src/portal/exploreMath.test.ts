@@ -89,10 +89,10 @@ test('clampRoomPosition keeps player inside room radius and vertical limits', ()
 test('computeLookJoystickRotation produces correct yaw and pitch angular deltas', () => {
   const right = computeLookJoystickRotation({x: 1.0, y: 0}, 2.0, 1.5, 0.5);
   assert.ok(Math.abs(right.yawDelta - -1.0) < 1e-6);
-  assert.equal(right.pitchDelta, 0);
+  assert.strictEqual(Math.abs(right.pitchDelta), 0);
 
   const up = computeLookJoystickRotation({x: 0, y: 1.0}, 2.0, 1.5, 0.5);
-  assert.equal(up.yawDelta, 0);
+  assert.strictEqual(Math.abs(up.yawDelta), 0);
   assert.ok(Math.abs(up.pitchDelta - 0.75) < 1e-6);
 });
 
@@ -132,4 +132,18 @@ test('resolveRoomCollision prevents penetrating the round coffee table', () => {
   // Minimum distance should be table radius + player radius = 0.62 + 0.25 = 0.87
   assert.ok(distToTable >= 0.86);
   assert.equal(blocked.y, 1.50);
+});
+
+test('resolveRoomCollision allows walking through archway into expanded Arcane Study', () => {
+  // Player walking along the side of the sofa towards the archway at (0, 2.5) -> (0, 4.5)
+  const pos = {x: 0, y: 1.5, z: 2.2};
+  const moved = resolveRoomCollision(pos, {dx: 0, dz: 2.0}, 0.25);
+  // Player successfully crossed through archway into the Arcane Study (z > 3.0)
+  assert.ok(moved.z >= 3.8);
+  assert.equal(moved.y, 1.50);
+
+  // In the Arcane Study, moving left is allowed up to the new expanded wall (minX -3.60)
+  const inStudy = resolveRoomCollision({x: 0, y: 1.5, z: 4.5}, {dx: -3.0, dz: 0}, 0.25);
+  assert.ok(inStudy.x <= -2.5); // Much wider than original room (-1.80)!
+  assert.ok(inStudy.x >= -3.35); // Clamped by study wall (-3.60 + 0.25)
 });

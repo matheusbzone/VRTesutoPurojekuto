@@ -169,22 +169,111 @@ export const DEFAULT_ROOM_OBSTACLES: RoomObstacleSet = {
   ],
 };
 
+export interface CompoundRoomLayout {
+  floorY: number;
+  sectors: BoxObstacle[];
+  obstacles: RoomObstacleSet;
+}
+
+export const EXPANDED_HOUSE_LAYOUT: CompoundRoomLayout = {
+  floorY: 1.50,
+  sectors: [
+    // Sala principal (Living Room)
+    {minX: -2.05, maxX: 2.50, minZ: -3.70, maxZ: 2.75},
+    // Passagem / Arco de transição
+    {minX: -1.35, maxX: 1.35, minZ: 2.55, maxZ: 3.15},
+    // Gabinete Arcano & Jardim de Inverno (Arcane Study & Sunroom)
+    {minX: -3.60, maxX: 3.60, minZ: 2.95, maxZ: 8.20},
+  ],
+  obstacles: {
+    boxes: [
+      // Sofá cinza grande atrás do jogador
+      {minX: -1.15, maxX: 1.15, minZ: 0.35, maxZ: 1.65},
+      // Mesa de estudos e livros (Study Desk)
+      {minX: -2.90, maxX: -1.40, minZ: 4.80, maxZ: 6.10},
+      // Estante de livros esquerda (Bookshelf Left)
+      {minX: -3.60, maxX: -3.00, minZ: 3.30, maxZ: 4.70},
+      // Vitrine / Estante direita (Bookshelf Right)
+      {minX: 3.00, maxX: 3.60, minZ: 3.50, maxZ: 6.20},
+    ],
+    circles: [
+      // Mesa de centro redonda em frente ao sofá
+      {x: 0.06, z: -1.29, radius: 0.62},
+      // Poltrona verde perto da janela
+      {x: -1.35, z: -0.75, radius: 0.52},
+      // Pufe verde próximo à mesa
+      {x: 0.65, z: -0.55, radius: 0.42},
+      // Pilar esquerdo da moldura do portal
+      {x: -0.58, z: -1.65, radius: 0.14},
+      // Pilar direito da moldura do portal
+      {x: 0.58, z: -1.65, radius: 0.14},
+      // Pedestal central do Cristal de Éter (Central Relic Pedestal)
+      {x: 0.0, z: 5.60, radius: 0.65},
+      // Pilar de treino Arcano 1 (Target Obelisk 1)
+      {x: -2.10, z: 7.20, radius: 0.32},
+      // Pilar de treino Arcano 2 (Target Obelisk 2)
+      {x: 2.10, z: 7.20, radius: 0.32},
+    ],
+  },
+};
+
+/**
+ * Checks if a position with player radius is inside any walkable sector.
+ */
+export function isInsideAnySector(
+  x: number,
+  z: number,
+  sectors: BoxObstacle[],
+  radius = 0.25
+): boolean {
+  for (const s of sectors) {
+    if (
+      x >= s.minX + radius - 1e-4 &&
+      x <= s.maxX - radius + 1e-4 &&
+      z >= s.minZ + radius - 1e-4 &&
+      z <= s.maxZ - radius + 1e-4
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Resolves 2D cylinder player collision against room walls and furniture obstacles,
- * allowing smooth sliding along surfaces while locking height safely to the floor.
+ * supporting compound multi-room sectors with smooth sliding along walls and doorways.
  */
 export function resolveRoomCollision(
   currentPos: {x: number; y: number; z: number},
   desiredDelta: {dx: number; dz: number},
   playerRadius = 0.25,
-  bounds: RoomBounds = DEFAULT_ROOM_BOUNDS,
-  obstacles: RoomObstacleSet = DEFAULT_ROOM_OBSTACLES
+  layout: CompoundRoomLayout = EXPANDED_HOUSE_LAYOUT
 ): {x: number; y: number; z: number} {
-  let nextX = currentPos.x + desiredDelta.dx;
-  let nextZ = currentPos.z + desiredDelta.dz;
+  const targetX = currentPos.x + desiredDelta.dx;
+  const targetZ = currentPos.z + desiredDelta.dz;
 
-  // 1. Resolve against circular obstacles (table, ottomans, armchair, portal posts)
-  for (const c of obstacles.circles) {
+  let nextX = currentPos.x;
+  let nextZ = currentPos.z;
+
+  // Step 1: Axis-independent sector validation for smooth sliding along diagonal walls and doorways
+  const canMoveX = isInsideAnySector(targetX, currentPos.z, layout.sectors, playerRadius);
+  const canMoveZ = isInsideAnySector(currentPos.x, targetZ, layout.sectors, playerRadius);
+
+  if (canMoveX) {
+    nextX = targetX;
+  }
+  if (canMoveZ) {
+    nextZ = targetZ;
+  }
+
+  // If both axes together are valid, use target position directly
+  if (isInsideAnySector(targetX, targetZ, layout.sectors, playerRadius)) {
+    nextX = targetX;
+    nextZ = targetZ;
+  }
+
+  // Step 2: Resolve against circular obstacles (tables, ottomans, relic pedestal, target pillars)
+  for (const c of layout.obstacles.circles) {
     const minDist = c.radius + playerRadius;
     const dx = nextX - c.x;
     const dz = nextZ - c.z;
@@ -193,13 +282,17 @@ export function resolveRoomCollision(
       const dist = Math.sqrt(distSq);
       const nx = dx / dist;
       const nz = dz / dist;
-      nextX = c.x + nx * minDist;
-      nextZ = c.z + nz * minDist;
+      const pushX = c.x + nx * minDist;
+      const pushZ = c.z + nz * minDist;
+      if (isInsideAnySector(pushX, pushZ, layout.sectors, playerRadius * 0.5)) {
+        nextX = pushX;
+        nextZ = pushZ;
+      }
     }
   }
 
-  // 2. Resolve against box obstacles (e.g. sofa)
-  for (const b of obstacles.boxes) {
+  // Step 3: Resolve against box obstacles (sofa, study desk, bookshelves)
+  for (const b of layout.obstacles.boxes) {
     const expandedMinX = b.minX - playerRadius;
     const expandedMaxX = b.maxX + playerRadius;
     const expandedMinZ = b.minZ - playerRadius;
@@ -217,27 +310,24 @@ export function resolveRoomCollision(
       const distBack = expandedMaxZ - nextZ;
 
       const minDist = Math.min(distLeft, distRight, distFront, distBack);
-      if (minDist === distLeft) nextX = expandedMinX;
-      else if (minDist === distRight) nextX = expandedMaxX;
-      else if (minDist === distFront) nextZ = expandedMinZ;
-      else nextZ = expandedMaxZ;
+      let candX = nextX;
+      let candZ = nextZ;
+      if (minDist === distLeft) candX = expandedMinX;
+      else if (minDist === distRight) candX = expandedMaxX;
+      else if (minDist === distFront) candZ = expandedMinZ;
+      else candZ = expandedMaxZ;
+
+      if (isInsideAnySector(candX, candZ, layout.sectors, playerRadius * 0.5)) {
+        nextX = candX;
+        nextZ = candZ;
+      }
     }
   }
 
-  // 3. Clamp against outer room walls (window wall, wood walls, front & back)
-  const clampedX = Math.min(
-    bounds.maxX - playerRadius,
-    Math.max(bounds.minX + playerRadius, nextX)
-  );
-  const clampedZ = Math.min(
-    bounds.maxZ - playerRadius,
-    Math.max(bounds.minZ + playerRadius, nextZ)
-  );
-
   return {
-    x: clampedX,
-    y: bounds.floorY,
-    z: clampedZ,
+    x: nextX,
+    y: layout.floorY,
+    z: nextZ,
   };
 }
 

@@ -124,6 +124,10 @@ button {
   right: max(14px, env(safe-area-inset-right));
   z-index: 30;
   pointer-events: none;
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  align-items: center;
 }
 
 #explore-mode-bar[hidden] {
@@ -150,6 +154,24 @@ button {
     background-color 0.16s ease,
     border-color 0.16s ease,
     transform 0.12s ease;
+}
+
+.powers-toggle-btn {
+  border-color: rgba(217, 107, 255, 0.6);
+  background: rgba(24, 12, 42, 0.88);
+  color: #f7e6ff;
+}
+
+.powers-toggle-btn:hover {
+  background: rgba(42, 20, 72, 0.94);
+  border-color: rgba(235, 140, 255, 0.9);
+}
+
+.powers-toggle-btn.is-active {
+  background: linear-gradient(135deg, rgba(82, 34, 138, 0.95), rgba(30, 95, 138, 0.95));
+  border-color: #62f7ff;
+  color: #fff;
+  box-shadow: 0 0 16px rgba(98, 247, 255, 0.45);
 }
 
 .explore-mode-btn:hover {
@@ -348,6 +370,99 @@ body[data-state='ready'] #explore-mode-bar {
   line-height: 1.1;
 }
 
+#powers-action-bar {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(218px, calc(204px + env(safe-area-inset-bottom)));
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  pointer-events: none;
+  z-index: 26;
+}
+
+body[data-mode='explore'] #powers-action-bar {
+  bottom: max(278px, calc(264px + env(safe-area-inset-bottom)));
+}
+
+#powers-action-bar[hidden] {
+  display: none !important;
+}
+
+.power-action-btn {
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  width: 76px;
+  height: 52px;
+  border-radius: 16px;
+  background: rgba(14, 10, 34, 0.86);
+  font-family: 'Google Sans', 'Segoe UI', Roboto, sans-serif;
+  text-transform: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  box-shadow: 0 8px 24px rgba(5, 3, 18, 0.6);
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease,
+    transform 0.1s ease;
+}
+
+.power-shoot-btn {
+  border: 2px solid rgba(79, 242, 255, 0.65);
+  color: #e9fcff;
+}
+
+.power-shoot-btn:hover {
+  border-color: #62f7ff;
+  background: rgba(20, 36, 68, 0.92);
+}
+
+.power-shoot-btn:active {
+  background: rgba(30, 80, 130, 0.95);
+  border-color: #62f7ff;
+  box-shadow: 0 0 18px rgba(98, 247, 255, 0.6);
+  transform: scale(0.94);
+}
+
+.power-grab-btn {
+  border: 2px solid rgba(217, 107, 255, 0.65);
+  color: #faedff;
+}
+
+.power-grab-btn:hover {
+  border-color: #f08cff;
+  background: rgba(48, 22, 74, 0.92);
+}
+
+.power-grab-btn:active {
+  background: rgba(85, 30, 128, 0.95);
+  border-color: #f08cff;
+  box-shadow: 0 0 18px rgba(240, 140, 255, 0.6);
+  transform: scale(0.94);
+}
+
+.power-grab-btn.is-holding {
+  background: linear-gradient(135deg, rgba(140, 42, 100, 0.92), rgba(64, 25, 115, 0.92));
+  border-color: #ff6eb4;
+  box-shadow: 0 0 16px rgba(255, 110, 180, 0.5);
+}
+
+.power-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.power-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+}
+
 @media (max-width: 600px) {
   #explore-joystick,
   #look-joystick {
@@ -378,6 +493,29 @@ body[data-state='ready'] #explore-mode-bar {
   .elev-btn {
     width: 54px;
     height: 44px;
+  }
+
+  #powers-action-bar {
+    right: max(14px, env(safe-area-inset-right));
+    bottom: max(202px, calc(190px + env(safe-area-inset-bottom)));
+    gap: 8px;
+  }
+
+  body[data-mode='explore'] #powers-action-bar {
+    bottom: max(258px, calc(244px + env(safe-area-inset-bottom)));
+  }
+
+  .power-action-btn {
+    width: 66px;
+    height: 46px;
+  }
+
+  .power-icon {
+    font-size: 0.95rem;
+  }
+
+  .power-label {
+    font-size: 0.68rem;
   }
 }
 

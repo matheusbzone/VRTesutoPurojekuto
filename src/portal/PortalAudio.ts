@@ -244,6 +244,109 @@ export class PortalAudio {
     }
   }
 
+  /**
+   * Synthesizes an energetic arcane projectile shot sound (laser/plasma chirp).
+   */
+  playShootSound(): void {
+    if (!this.ctx || this.muted || this.ctx.state !== 'running') return;
+    const now = this.ctx.currentTime;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const filter = this.ctx.createBiquadFilter();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.exponentialRampToValueAtTime(140, now + 0.16);
+
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(1200, now);
+    filter.Q.value = 2.5;
+
+    gain.gain.setValueAtTime(0.24, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.masterGain ?? this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.2);
+  }
+
+  /**
+   * Synthesizes an impact spark/flash resonance pop.
+   */
+  playImpactSound(): void {
+    if (!this.ctx || this.muted || this.ctx.state !== 'running') return;
+    const now = this.ctx.currentTime;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1400, now);
+    osc.frequency.exponentialRampToValueAtTime(280, now + 0.22);
+
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain ?? this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.26);
+  }
+
+  /**
+   * Synthesizes a telekinetic magnetic hum swell when grabbing an object.
+   */
+  playGrabSound(): void {
+    if (!this.ctx || this.muted || this.ctx.state !== 'running') return;
+    const now = this.ctx.currentTime;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(440, now + 0.18);
+
+    gain.gain.setValueAtTime(0.01, now);
+    gain.gain.linearRampToValueAtTime(0.25, now + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain ?? this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.38);
+  }
+
+  /**
+   * Synthesizes a swoosh/whoosh sound when launching or releasing an object.
+   */
+  playReleaseSound(): void {
+    if (!this.ctx || this.muted || this.ctx.state !== 'running') return;
+    const now = this.ctx.currentTime;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(380, now);
+    osc.frequency.exponentialRampToValueAtTime(180, now + 0.22);
+
+    gain.gain.setValueAtTime(0.22, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain ?? this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.26);
+  }
+
   dispose(): void {
     if (this.chimeTimer !== null) {
       clearTimeout(this.chimeTimer);

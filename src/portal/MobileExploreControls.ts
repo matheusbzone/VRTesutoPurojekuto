@@ -1,9 +1,12 @@
-import {computeJoystickInput, type ExploreMoveInput} from './exploreMath';
+import { computeJoystickInput, type ExploreMoveInput } from './exploreMath';
 
 export interface MobileExploreControlsOptions {
   onToggleExplore: () => void | Promise<void>;
   onLookDrag: (deltaX: number, deltaY: number) => void;
   canLookDrag?: (event: PointerEvent) => boolean;
+  onTogglePowers?: () => boolean;
+  onShoot?: () => void;
+  onGrab?: () => void;
 }
 
 /**
@@ -24,12 +27,20 @@ export class MobileExploreControls {
   private readonly elevContainer: HTMLDivElement;
   private readonly upButton: HTMLButtonElement;
   private readonly downButton: HTMLButtonElement;
+  private readonly powersButton: HTMLButtonElement;
+  private readonly powersActionBar: HTMLDivElement;
+  private readonly shootButton: HTMLButtonElement;
+  private readonly grabButton: HTMLButtonElement;
 
   private readonly onToggleExplore: () => void | Promise<void>;
   private readonly onLookDrag: (deltaX: number, deltaY: number) => void;
   private readonly canLookDrag?: (event: PointerEvent) => boolean;
+  private readonly onTogglePowers?: () => boolean;
+  private readonly onShoot?: () => void;
+  private readonly onGrab?: () => void;
 
   private exploreActive = false;
+  private powersActive = false;
   private xrSessionActive = false;
 
   private joystickPointerId: number | null = null;
@@ -51,6 +62,9 @@ export class MobileExploreControls {
     this.onToggleExplore = options.onToggleExplore;
     this.onLookDrag = options.onLookDrag;
     this.canLookDrag = options.canLookDrag;
+    this.onTogglePowers = options.onTogglePowers;
+    this.onShoot = options.onShoot;
+    this.onGrab = options.onGrab;
 
     // 1. Top-right mode switch bar
     this.modeBar = document.createElement('div');
@@ -64,10 +78,18 @@ export class MobileExploreControls {
     this.toggleButton.textContent = 'Explorar (Sem AR)';
     this.toggleButton.addEventListener('click', this.handleToggleClick);
 
-    this.modeBar.appendChild(this.toggleButton);
+    this.powersButton = document.createElement('button');
+    this.powersButton.id = 'toggle-powers-btn';
+    this.powersButton.className = 'explore-mode-btn powers-toggle-btn';
+    this.powersButton.type = 'button';
+    this.powersButton.setAttribute('aria-pressed', 'false');
+    this.powersButton.textContent = '🖐️ Poderes';
+    this.powersButton.addEventListener('click', this.handlePowersClick);
+
+    this.modeBar.append(this.powersButton, this.toggleButton);
     document.body.appendChild(this.modeBar);
 
-    // 2. Mobile HUD (Dual Joystick + Subir/Descer)
+    // 2. Mobile HUD (Dual Joystick + Subir/Descer + Poderes)
     this.hudRoot = document.createElement('div');
     this.hudRoot.id = 'mobile-explore-hud';
     this.hudRoot.hidden = false;
@@ -135,6 +157,35 @@ export class MobileExploreControls {
 
     this.elevContainer.append(this.upButton, this.downButton);
     this.hudRoot.appendChild(this.elevContainer);
+
+    // Powers Action Buttons (⚡ Disparar, 🧲 Pegar / 🚀 Lançar)
+    this.powersActionBar = document.createElement('div');
+    this.powersActionBar.id = 'powers-action-bar';
+    this.powersActionBar.hidden = true;
+
+    this.shootButton = document.createElement('button');
+    this.shootButton.id = 'btn-power-shoot';
+    this.shootButton.className = 'power-action-btn power-shoot-btn';
+    this.shootButton.type = 'button';
+    this.shootButton.setAttribute('aria-label', 'Disparar Poder');
+    this.shootButton.innerHTML =
+      '<span class="power-icon" aria-hidden="true">⚡</span><span class="power-label">Disparar</span>';
+    this.shootButton.addEventListener('pointerdown', this.handleShootClick);
+
+    this.grabButton = document.createElement('button');
+    this.grabButton.id = 'btn-power-grab';
+    this.grabButton.className = 'power-action-btn power-grab-btn';
+    this.grabButton.type = 'button';
+    this.grabButton.setAttribute('aria-label', 'Pegar ou Lançar');
+    this.grabButton.innerHTML =
+      '<span class="power-icon" aria-hidden="true">🧲</span><span class="power-label">Pegar</span>';
+    this.grabButton.addEventListener('pointerdown', this.handleGrabClick);
+
+    this.powersActionBar.append(this.grabButton, this.shootButton);
+    this.hudRoot.appendChild(this.powersActionBar);
+
+    this.elevContainer.append(this.upButton, this.downButton);
+    this.hudRoot.appendChild(this.elevContainer);
     document.body.appendChild(this.hudRoot);
 
     this.bindEvents();
@@ -175,6 +226,44 @@ export class MobileExploreControls {
     void this.onToggleExplore();
   };
 
+  private handlePowersClick = (event: MouseEvent): void => {
+    event.stopPropagation();
+    if (this.onTogglePowers) {
+      const active = this.onTogglePowers();
+      this.setPowersActive(active);
+    }
+  };
+
+  private handleShootClick = (event: PointerEvent): void => {
+    event.stopPropagation();
+    this.onShoot?.();
+  };
+
+  private handleGrabClick = (event: PointerEvent): void => {
+    event.stopPropagation();
+    this.onGrab?.();
+  };
+
+  setPowersActive(active: boolean): void {
+    this.powersActive = active;
+    this.powersButton.setAttribute('aria-pressed', active ? 'true' : 'false');
+    this.powersButton.classList.toggle('is-active', active);
+    this.powersActionBar.hidden = !active || this.xrSessionActive;
+  }
+
+  setHoldingState(isHolding: boolean, itemName?: string): void {
+    this.grabButton.classList.toggle('is-holding', isHolding);
+    if (isHolding) {
+      this.grabButton.innerHTML =
+        '<span class="power-icon" aria-hidden="true">🚀</span><span class="power-label">Lançar</span>';
+      this.grabButton.setAttribute('aria-label', `Lançar ${itemName ?? 'Objeto'}`);
+    } else {
+      this.grabButton.innerHTML =
+        '<span class="power-icon" aria-hidden="true">🧲</span><span class="power-label">Pegar</span>';
+      this.grabButton.setAttribute('aria-label', 'Pegar Objeto');
+    }
+  }
+
   setExploreMode(active: boolean): void {
     this.exploreActive = active;
     this.hudRoot.hidden = this.xrSessionActive;
@@ -189,6 +278,7 @@ export class MobileExploreControls {
     this.xrSessionActive = active;
     this.modeBar.hidden = active;
     this.hudRoot.hidden = active;
+    this.powersActionBar.hidden = !this.powersActive || active;
     if (active) {
       this.setExploreMode(false);
     }
@@ -204,7 +294,7 @@ export class MobileExploreControls {
     };
   }
 
-  getLookInput(): {lookX: number; lookY: number} {
+  getLookInput(): { lookX: number; lookY: number } {
     return {
       lookX: this.lookX,
       lookY: this.lookY,
@@ -440,6 +530,9 @@ export class MobileExploreControls {
     this.downButton.removeEventListener('lostpointercapture', this.onDownPointerEnd);
 
     this.toggleButton.removeEventListener('click', this.handleToggleClick);
+    this.powersButton.removeEventListener('click', this.handlePowersClick);
+    this.shootButton.removeEventListener('pointerdown', this.handleShootClick);
+    this.grabButton.removeEventListener('pointerdown', this.handleGrabClick);
 
     window.removeEventListener('pointerdown', this.onWindowPointerDown);
     window.removeEventListener('pointermove', this.onWindowPointerMove);
