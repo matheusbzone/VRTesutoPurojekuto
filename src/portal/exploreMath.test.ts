@@ -134,16 +134,21 @@ test('resolveRoomCollision prevents penetrating the round coffee table', () => {
   assert.equal(blocked.y, 1.50);
 });
 
-test('resolveRoomCollision allows walking through archway into expanded Arcane Study', () => {
-  // Player walking along the side of the sofa towards the archway at (0, 2.5) -> (0, 4.5)
-  const pos = {x: 0, y: 1.5, z: 2.2};
-  const moved = resolveRoomCollision(pos, {dx: 0, dz: 2.0}, 0.25);
-  // Player successfully crossed through archway into the Arcane Study (z > 3.0)
-  assert.ok(moved.z >= 3.8);
-  assert.equal(moved.y, 1.50);
+test('resolveRoomCollision blocks walking through the back wall except at the doorway', () => {
+  // Player at (1.5, 1.5, 2.0) tries to walk back into the rear wood wall (outside doorway)
+  const posOutsideDoor = {x: 1.5, y: 1.5, z: 2.0};
+  const blocked = resolveRoomCollision(posOutsideDoor, {dx: 0, dz: 2.0}, 0.25);
+  // Sector 1 maxZ is 2.65, so player is stopped at 2.65 - 0.25 = 2.40
+  assert.ok(blocked.z <= 2.41);
+  assert.equal(blocked.y, 1.50);
 
-  // In the Arcane Study, moving left is allowed up to the new expanded wall (minX -3.60)
-  const inStudy = resolveRoomCollision({x: 0, y: 1.5, z: 4.5}, {dx: -3.0, dz: 0}, 0.25);
-  assert.ok(inStudy.x <= -2.5); // Much wider than original room (-1.80)!
-  assert.ok(inStudy.x >= -3.35); // Clamped by study wall (-3.60 + 0.25)
+  // Player at (0, 1.5, 2.0) walks forward through the doorway (x in [-0.85, 0.85])
+  const posInDoor = {x: 0, y: 1.5, z: 2.0};
+  const throughDoor = resolveRoomCollision(posInDoor, {dx: 0, dz: 2.5}, 0.25);
+  // Entered the Conservatory (z > 3.0)
+  assert.ok(throughDoor.z >= 3.8);
+
+  // In the Conservatory, walking further back is stopped by the rear conservatory window (z = 8.00)
+  const atEnd = resolveRoomCollision({x: 0, y: 1.5, z: 5.0}, {dx: 0, dz: 6.0}, 0.25);
+  assert.ok(atEnd.z <= 7.76); // maxZ 8.00 - 0.25 = 7.75
 });

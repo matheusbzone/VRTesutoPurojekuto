@@ -15,155 +15,10 @@ export interface InteractableEntity {
 }
 
 /**
- * Creates high-detail procedural canvas textures for floors, wainscoted walls,
- * and library bookshelves without external assets.
- */
-function createParquetTexture(): THREE.CanvasTexture {
-  if (typeof document === 'undefined') {
-    return new THREE.CanvasTexture(null as unknown as HTMLCanvasElement);
-  }
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d');
-  if (ctx) {
-    ctx.fillStyle = '#3e2716';
-    ctx.fillRect(0, 0, 512, 512);
-
-    const plankWidth = 64;
-    const plankHeight = 128;
-    const colors = ['#4f331e', '#5a3b23', '#452c1a', '#523620', '#3a2415'];
-
-    for (let y = 0; y < 512; y += plankHeight) {
-      for (let x = 0; x < 512; x += plankWidth) {
-        const offset = ((y / plankHeight) % 2) * (plankWidth / 2);
-        const px = (x + offset) % 512;
-        const color = colors[Math.floor(Math.random() * colors.length)];
-        ctx.fillStyle = color;
-        ctx.fillRect(px, y, plankWidth - 2, plankHeight - 2);
-
-        // Wood grain lines
-        ctx.strokeStyle = 'rgba(25, 14, 8, 0.45)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < 4; i++) {
-          const gx = px + Math.random() * (plankWidth - 4);
-          ctx.beginPath();
-          ctx.moveTo(gx, y);
-          ctx.lineTo(gx + (Math.random() - 0.5) * 6, y + plankHeight - 2);
-          ctx.stroke();
-        }
-      }
-    }
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(6, 6);
-  return texture;
-}
-
-function createWainscotWallTexture(): THREE.CanvasTexture {
-  if (typeof document === 'undefined') {
-    return new THREE.CanvasTexture(null as unknown as HTMLCanvasElement);
-  }
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d');
-  if (ctx) {
-    // Upper wall: textured warm cream plaster
-    ctx.fillStyle = '#e4dacf';
-    ctx.fillRect(0, 0, 512, 280);
-
-    // Subtle stucco noise
-    for (let i = 0; i < 1200; i++) {
-      ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255, 255, 255, 0.12)' : 'rgba(160, 145, 130, 0.1)';
-      ctx.fillRect(Math.random() * 512, Math.random() * 280, 2, 2);
-    }
-
-    // Chair rail wood molding divider
-    ctx.fillStyle = '#2d1a10';
-    ctx.fillRect(0, 276, 512, 16);
-    ctx.fillStyle = '#5c3924';
-    ctx.fillRect(0, 280, 512, 8);
-
-    // Lower wall: rich mahogany wood paneling
-    ctx.fillStyle = '#422818';
-    ctx.fillRect(0, 292, 512, 220);
-
-    const panelW = 128;
-    for (let x = 8; x < 512; x += panelW) {
-      // Inset wood panel frame
-      ctx.fillStyle = '#311c10';
-      ctx.fillRect(x, 306, panelW - 16, 190);
-      ctx.fillStyle = '#4f301d';
-      ctx.fillRect(x + 4, 310, panelW - 24, 182);
-    }
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.ClampToEdgeWrapping;
-  texture.repeat.set(4, 1);
-  return texture;
-}
-
-function createBookshelfTexture(): THREE.CanvasTexture {
-  if (typeof document === 'undefined') {
-    return new THREE.CanvasTexture(null as unknown as HTMLCanvasElement);
-  }
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d');
-  if (ctx) {
-    ctx.fillStyle = '#2a180e';
-    ctx.fillRect(0, 0, 512, 512);
-
-    const shelfRows = 4;
-    const shelfH = 512 / shelfRows;
-    const bookColors = [
-      '#7b1e1e', '#1c4d63', '#1e5f39', '#8a6519', '#4d2d6d',
-      '#994224', '#2d3b5c', '#5a2233', '#685934'
-    ];
-
-    for (let r = 0; r < shelfRows; r++) {
-      const sy = r * shelfH;
-      // Wood shelf plank
-      ctx.fillStyle = '#3e2415';
-      ctx.fillRect(0, sy + shelfH - 12, 512, 12);
-      ctx.fillStyle = '#1c0f08';
-      ctx.fillRect(0, sy + shelfH - 14, 512, 2);
-
-      // Books in shelf
-      let bx = 16;
-      while (bx < 496) {
-        const bw = 12 + Math.random() * 16;
-        const bh = shelfH - 24 - Math.random() * 14;
-        const color = bookColors[Math.floor(Math.random() * bookColors.length)];
-        ctx.fillStyle = color;
-        ctx.fillRect(bx, sy + shelfH - 12 - bh, bw - 2, bh);
-
-        // Gold foil spine line
-        if (Math.random() > 0.4) {
-          ctx.fillStyle = '#e6c46a';
-          ctx.fillRect(bx + 2, sy + shelfH - 12 - bh + 6, bw - 6, 2);
-          ctx.fillRect(bx + 2, sy + shelfH - 12 - 10, bw - 6, 2);
-        }
-        bx += bw;
-      }
-    }
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  return texture;
-}
-
-/**
- * Architectural expansion of the house: connects the living room through an open archway
- * into a grand Arcane Study & Conservatory with parquet floors, wainscoted walls,
- * exposed wooden beams, panoramic bay window, and interactive magical relics & training targets.
+ * Grand Arcane Conservatory & Study:
+ * An architectural wing seamlessly connected to the living room through an open archway.
+ * Built with rich 3D architectural elements (3D wainscoting moldings, exposed timber rafters,
+ * 3D library books, bay windows, and PBR physical materials).
  */
 export class HouseExpansion extends THREE.Group {
   readonly interactables: InteractableEntity[] = [];
@@ -173,256 +28,292 @@ export class HouseExpansion extends THREE.Group {
   private relicRing2!: THREE.Mesh;
   private targetOrb1!: THREE.Mesh;
   private targetOrb2!: THREE.Mesh;
-
   private targetMat1!: THREE.MeshStandardMaterial;
   private targetMat2!: THREE.MeshStandardMaterial;
-
-  private parquetTex: THREE.CanvasTexture;
-  private wallTex: THREE.CanvasTexture;
-  private bookTex: THREE.CanvasTexture;
 
   constructor() {
     super();
     this.name = 'HouseExpansion';
 
-    this.parquetTex = createParquetTexture();
-    this.wallTex = createWainscotWallTexture();
-    this.bookTex = createBookshelfTexture();
-
     this.buildArchitecture();
-    this.buildFurniture();
+    this.buildFurnitureAndBooks();
     this.buildRelicAndTargets();
     this.buildLighting();
   }
 
   private buildArchitecture(): void {
-    const wallMat = new THREE.MeshStandardMaterial({
-      map: this.wallTex,
-      roughness: 0.72,
+    // Premium PBR Architectural Materials (No flat 2D canvas drawings!)
+    const woodFloorMat = new THREE.MeshStandardMaterial({
+      color: 0x3a2416,
+      roughness: 0.36,
       metalness: 0.08,
-      side: THREE.DoubleSide,
-    });
-
-    const floorMat = new THREE.MeshStandardMaterial({
-      map: this.parquetTex,
-      roughness: 0.42,
-      metalness: 0.05,
     });
 
     const woodTrimMat = new THREE.MeshStandardMaterial({
-      color: 0x3d2516,
-      roughness: 0.5,
-      metalness: 0.1,
+      color: 0x301c10,
+      roughness: 0.42,
+      metalness: 0.12,
     });
 
-    // 1. Room Floor: (X: [-3.6, 3.6], Z: [2.75, 8.2], Y: 0.01)
-    const floorGeo = new THREE.PlaneGeometry(7.2, 5.45);
-    const floor = new THREE.Mesh(floorGeo, floorMat);
+    const wainscotPanelMat = new THREE.MeshStandardMaterial({
+      color: 0x422818,
+      roughness: 0.48,
+      metalness: 0.06,
+    });
+
+    const upperWallMat = new THREE.MeshStandardMaterial({
+      color: 0xede5db,
+      roughness: 0.82,
+      metalness: 0.02,
+    });
+
+    const ceilingMat = new THREE.MeshStandardMaterial({
+      color: 0xf4eee8,
+      roughness: 0.90,
+    });
+
+    // 1. Conservatory Floor (X: [-3.6, 3.6], Z: [2.95, 8.00], Y: 0.01)
+    const floorGeo = new THREE.PlaneGeometry(7.20, 5.05);
+    const floor = new THREE.Mesh(floorGeo, woodFloorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.position.set(0, 0.01, 5.475);
-    floor.receiveShadow = true;
     this.add(floor);
 
-    // 2. Ceiling: at Y = 3.20
-    const ceilingGeo = new THREE.PlaneGeometry(7.2, 5.45);
-    const ceilingMat = new THREE.MeshStandardMaterial({
-      color: 0xf5ede4,
-      roughness: 0.9,
-    });
+    // 2. Ceiling with Exposed Timber Beams (Y: 3.20)
+    const ceilingGeo = new THREE.PlaneGeometry(7.20, 5.05);
     const ceiling = new THREE.Mesh(ceilingGeo, ceilingMat);
     ceiling.rotation.x = Math.PI / 2;
     ceiling.position.set(0, 3.20, 5.475);
     this.add(ceiling);
 
-    // Exposed Wooden Ceiling Beams
-    const beamGeoX = new THREE.BoxGeometry(7.2, 0.18, 0.22);
-    for (let bz = 3.6; bz <= 7.8; bz += 1.35) {
-      const beam = new THREE.Mesh(beamGeoX, woodTrimMat);
+    const beamGeo = new THREE.BoxGeometry(7.20, 0.18, 0.22);
+    for (let bz = 3.65; bz <= 7.65; bz += 1.30) {
+      const beam = new THREE.Mesh(beamGeo, woodTrimMat);
       beam.position.set(0, 3.10, bz);
       this.add(beam);
     }
 
-    // 3. Left Wall (X = -3.6, Z from 2.75 to 8.2)
-    const leftWallGeo = new THREE.PlaneGeometry(5.45, 3.20);
-    const leftWall = new THREE.Mesh(leftWallGeo, wallMat);
-    leftWall.rotation.y = Math.PI / 2;
-    leftWall.position.set(-3.60, 1.60, 5.475);
-    this.add(leftWall);
+    // 3. Left Wall (X: -3.60, Z: 2.95 to 8.00)
+    this.buildWainscotedWall(new THREE.Vector3(-3.60, 0, 5.475), 5.05, Math.PI / 2, woodTrimMat, wainscotPanelMat, upperWallMat);
 
-    // 4. Right Wall (X = 3.6, Z from 2.75 to 8.2)
-    const rightWallGeo = new THREE.PlaneGeometry(5.45, 3.20);
-    const rightWall = new THREE.Mesh(rightWallGeo, wallMat);
-    rightWall.rotation.y = -Math.PI / 2;
-    rightWall.position.set(3.60, 1.60, 5.475);
-    this.add(rightWall);
+    // 4. Right Wall (X: 3.60, Z: 2.95 to 8.00)
+    this.buildWainscotedWall(new THREE.Vector3(3.60, 0, 5.475), 5.05, -Math.PI / 2, woodTrimMat, wainscotPanelMat, upperWallMat);
 
-    // 5. Front Wall with Archway (at Z = 2.75)
-    // Left Wing of front wall: X from -3.6 to -1.35
-    const frontLeftGeo = new THREE.PlaneGeometry(2.25, 3.20);
-    const frontLeft = new THREE.Mesh(frontLeftGeo, wallMat);
-    frontLeft.position.set(-2.475, 1.60, 2.75);
-    this.add(frontLeft);
+    // 5. Front Dividing Wall with Archway (at Z: 2.95)
+    // Left Wing (X from -3.60 to -0.90, width: 2.70m)
+    this.buildWainscotedWall(new THREE.Vector3(-2.25, 0, 2.95), 2.70, 0, woodTrimMat, wainscotPanelMat, upperWallMat);
 
-    // Right Wing of front wall: X from 1.35 to 3.6
-    const frontRightGeo = new THREE.PlaneGeometry(2.25, 3.20);
-    const frontRight = new THREE.Mesh(frontRightGeo, wallMat);
-    frontRight.position.set(2.475, 1.60, 2.75);
-    this.add(frontRight);
+    // Right Wing (X from 0.90 to 3.60, width: 2.70m)
+    this.buildWainscotedWall(new THREE.Vector3(2.25, 0, 2.95), 2.70, 0, woodTrimMat, wainscotPanelMat, upperWallMat);
 
-    // Archway Header lintel above the opening: X from -1.35 to 1.35, Y from 2.50 to 3.20
-    const archLintelGeo = new THREE.BoxGeometry(2.70, 0.70, 0.22);
-    const archLintel = new THREE.Mesh(archLintelGeo, woodTrimMat);
-    archLintel.position.set(0, 2.85, 2.75);
+    // 6. Double-sided Archway Frame & Corridor Jambs (X: [-0.90, 0.90], Z: [2.60, 2.95])
+    const archLintel = new THREE.Mesh(new THREE.BoxGeometry(2.00, 0.65, 0.40), woodTrimMat);
+    archLintel.position.set(0, 2.875, 2.775);
     this.add(archLintel);
 
-    // Decorative Fluted Columns framing the archway
-    const colGeo = new THREE.CylinderGeometry(0.12, 0.14, 2.6, 16);
+    // Fluted Corinthian wood pilasters framing the doorway
+    const colGeo = new THREE.CylinderGeometry(0.12, 0.14, 2.55, 16);
     const leftCol = new THREE.Mesh(colGeo, woodTrimMat);
-    leftCol.position.set(-1.35, 1.30, 2.75);
+    leftCol.position.set(-0.90, 1.275, 2.775);
     this.add(leftCol);
 
     const rightCol = new THREE.Mesh(colGeo, woodTrimMat);
-    rightCol.position.set(1.35, 1.30, 2.75);
+    rightCol.position.set(0.90, 1.275, 2.775);
     this.add(rightCol);
 
-    // Archway threshold step
-    const stepGeo = new THREE.BoxGeometry(2.70, 0.04, 0.35);
-    const stepMat = new THREE.MeshStandardMaterial({color: 0x5a3c26, roughness: 0.4});
-    const step = new THREE.Mesh(stepGeo, stepMat);
-    step.position.set(0, 0.02, 2.75);
+    // Threshold wood step connecting the two rooms
+    const step = new THREE.Mesh(new THREE.BoxGeometry(1.80, 0.03, 0.45), woodTrimMat);
+    step.position.set(0, 0.015, 2.775);
     this.add(step);
 
-    // 6. Back Wall: Grand Conservatory Bay Window overlooking twilight forest (at Z = 8.20)
-    // Window Frame
-    const winFrameGeo = new THREE.BoxGeometry(7.20, 3.20, 0.18);
-    const winFrame = new THREE.Mesh(winFrameGeo, woodTrimMat);
-    winFrame.position.set(0, 1.60, 8.20);
+    // 7. Grand Conservatory Bay Window at the back (Z: 8.00)
+    const winFrameMat = new THREE.MeshStandardMaterial({color: 0x221812, roughness: 0.35, metalness: 0.2});
+    const winFrame = new THREE.Mesh(new THREE.BoxGeometry(7.20, 3.20, 0.16), winFrameMat);
+    winFrame.position.set(0, 1.60, 8.00);
     this.add(winFrame);
 
-    // Glass Window Panes
-    const glassGeo = new THREE.PlaneGeometry(6.40, 2.50);
+    // Translucent glass panes
     const glassMat = new THREE.MeshPhysicalMaterial({
-      color: 0x9be2ff,
-      transmission: 0.75,
-      opacity: 0.85,
+      color: 0xa8e6ff,
+      transmission: 0.80,
+      opacity: 0.88,
       transparent: true,
-      roughness: 0.12,
-      ior: 1.5,
+      roughness: 0.08,
+      ior: 1.52,
     });
-    const glass = new THREE.Mesh(glassGeo, glassMat);
-    glass.position.set(0, 1.65, 8.16);
+    const glass = new THREE.Mesh(new THREE.PlaneGeometry(6.40, 2.40), glassMat);
+    glass.position.set(0, 1.60, 7.96);
     this.add(glass);
 
-    // Scenic backdrop outside the bay window
-    const scenicGeo = new THREE.PlaneGeometry(9.0, 4.5);
-    const scenicCanvas = document.createElement('canvas');
-    scenicCanvas.width = 512;
-    scenicCanvas.height = 256;
-    const sctx = scenicCanvas.getContext('2d');
-    if (sctx) {
-      const grad = sctx.createLinearGradient(0, 0, 0, 256);
-      grad.addColorStop(0, '#0a0d24');
-      grad.addColorStop(0.5, '#1e2448');
-      grad.addColorStop(0.85, '#354366');
-      grad.addColorStop(1, '#1b2d28');
-      sctx.fillStyle = grad;
-      sctx.fillRect(0, 0, 512, 256);
-
-      // Distant mountain & pine tree silhouettes
-      sctx.fillStyle = '#091512';
-      sctx.beginPath();
-      sctx.moveTo(0, 256);
-      for (let x = 0; x <= 512; x += 16) {
-        const ty = 140 + Math.sin(x * 0.04) * 25 + Math.random() * 20;
-        sctx.lineTo(x, ty);
-      }
-      sctx.lineTo(512, 256);
-      sctx.fill();
-
-      // Glowing stars & fireflies
-      for (let i = 0; i < 70; i++) {
-        sctx.fillStyle = `rgba(220, 240, 255, ${0.4 + Math.random() * 0.6})`;
-        sctx.fillRect(Math.random() * 512, Math.random() * 120, 2, 2);
-      }
-    }
-    const scenicTex = new THREE.CanvasTexture(scenicCanvas);
-    const scenicMat = new THREE.MeshBasicMaterial({map: scenicTex});
-    const scenicBackdrop = new THREE.Mesh(scenicGeo, scenicMat);
-    scenicBackdrop.position.set(0, 1.70, 8.65);
-    this.add(scenicBackdrop);
+    // Scenic Vista outside the Conservatory window
+    this.buildScenicBackdrop();
   }
 
-  private buildFurniture(): void {
-    const woodMat = new THREE.MeshStandardMaterial({
-      color: 0x3a2214,
-      roughness: 0.45,
-      metalness: 0.1,
-    });
-    const brassMat = new THREE.MeshStandardMaterial({
-      color: 0xd4af37,
-      roughness: 0.3,
-      metalness: 0.8,
-    });
+  private buildWainscotedWall(
+    pos: THREE.Vector3,
+    length: number,
+    rotY: number,
+    trimMat: THREE.Material,
+    panelMat: THREE.Material,
+    upperMat: THREE.Material
+  ): void {
+    const wallGroup = new THREE.Group();
+    wallGroup.position.copy(pos);
+    wallGroup.rotation.y = rotY;
 
-    // 1. Large Bookshelf along the left wall (X: -3.30, Z: 4.0)
-    const shelfGeo = new THREE.BoxGeometry(0.55, 2.40, 1.50);
-    const shelfMat = new THREE.MeshStandardMaterial({
-      map: this.bookTex,
-      roughness: 0.65,
-    });
-    const bookshelf = new THREE.Mesh(shelfGeo, shelfMat);
-    bookshelf.position.set(-3.30, 1.20, 4.0);
-    this.add(bookshelf);
+    // Upper plaster wall (Y: 1.15 to 3.20, height: 2.05)
+    const upperGeo = new THREE.PlaneGeometry(length, 2.05);
+    const upper = new THREE.Mesh(upperGeo, upperMat);
+    upper.position.set(0, 2.175, 0);
+    wallGroup.add(upper);
 
-    // 2. Study Desk (X: -2.15, Z: 5.45)
-    const deskTopGeo = new THREE.BoxGeometry(1.40, 0.08, 0.85);
-    const deskTop = new THREE.Mesh(deskTopGeo, woodMat);
-    deskTop.position.set(-2.15, 0.78, 5.45);
-    this.add(deskTop);
+    // Lower wainscot wood wall (Y: 0 to 1.15)
+    const lowerGeo = new THREE.PlaneGeometry(length, 1.15);
+    const lower = new THREE.Mesh(lowerGeo, panelMat);
+    lower.position.set(0, 0.575, 0);
+    wallGroup.add(lower);
 
-    // Desk Legs
-    const legGeo = new THREE.CylinderGeometry(0.035, 0.03, 0.76, 12);
-    const legPositions = [
-      [-2.75, 0.38, 5.10],
-      [-1.55, 0.38, 5.10],
-      [-2.75, 0.38, 5.80],
-      [-1.55, 0.38, 5.80],
-    ];
-    for (const [lx, ly, lz] of legPositions) {
-      const leg = new THREE.Mesh(legGeo, brassMat);
-      leg.position.set(lx, ly, lz);
-      this.add(leg);
+    // 3D Chair rail molding dividing lower and upper wall
+    const railGeo = new THREE.BoxGeometry(length, 0.07, 0.05);
+    const rail = new THREE.Mesh(railGeo, trimMat);
+    rail.position.set(0, 1.15, 0.025);
+    wallGroup.add(rail);
+
+    // 3D Baseboard along the floor
+    const baseGeo = new THREE.BoxGeometry(length, 0.14, 0.04);
+    const base = new THREE.Mesh(baseGeo, trimMat);
+    base.position.set(0, 0.07, 0.02);
+    wallGroup.add(base);
+
+    // 3D vertical decorative panel slats
+    const slatGeo = new THREE.BoxGeometry(0.05, 0.95, 0.025);
+    const halfL = length * 0.5;
+    for (let x = -halfL + 0.40; x <= halfL - 0.40; x += 0.65) {
+      const slat = new THREE.Mesh(slatGeo, trimMat);
+      slat.position.set(x, 0.62, 0.015);
+      wallGroup.add(slat);
     }
 
-    // Desk Props: Open Antique Spellbook & Runic Cubes
-    const bookCover = new THREE.Mesh(
-      new THREE.BoxGeometry(0.32, 0.04, 0.24),
-      new THREE.MeshStandardMaterial({color: 0x6e2626, roughness: 0.5})
+    this.add(wallGroup);
+  }
+
+  private buildScenicBackdrop(): void {
+    const scenicGeo = new THREE.PlaneGeometry(9.5, 4.8);
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      const grad = ctx.createLinearGradient(0, 0, 0, 256);
+      grad.addColorStop(0, '#060918');
+      grad.addColorStop(0.5, '#121832');
+      grad.addColorStop(0.85, '#243048');
+      grad.addColorStop(1, '#111e1a');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 512, 256);
+
+      // Starry sky
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      for (let i = 0; i < 90; i++) {
+        ctx.fillRect(Math.random() * 512, Math.random() * 120, 1.5, 1.5);
+      }
+
+      // Mountain ridges and pine silhouettes
+      ctx.fillStyle = '#080d0f';
+      ctx.beginPath();
+      ctx.moveTo(0, 256);
+      for (let x = 0; x <= 512; x += 12) {
+        const h = 135 + Math.sin(x * 0.035) * 25 + Math.random() * 15;
+        ctx.lineTo(x, h);
+      }
+      ctx.lineTo(512, 256);
+      ctx.fill();
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.MeshBasicMaterial({map: tex});
+    const mesh = new THREE.Mesh(scenicGeo, mat);
+    mesh.position.set(0, 1.65, 8.45);
+    this.add(mesh);
+  }
+
+  private buildFurnitureAndBooks(): void {
+    const woodMat = new THREE.MeshStandardMaterial({color: 0x321e12, roughness: 0.40, metalness: 0.10});
+    const brassMat = new THREE.MeshStandardMaterial({color: 0xd4af37, roughness: 0.25, metalness: 0.88});
+
+    // 1. Large 3D Bookshelf (X: -3.25, Z: 4.10)
+    const shelfGroup = new THREE.Group();
+    shelfGroup.position.set(-3.25, 0, 4.10);
+
+    // Frame
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.50, 2.40, 1.60), woodMat);
+    frame.position.y = 1.20;
+    shelfGroup.add(frame);
+
+    // Real 3D Book rows
+    const bookColors = [0x782020, 0x1d4661, 0x225c38, 0x826018, 0x482b63, 0x8a391e, 0x2a3754];
+    for (let row = 0; row < 4; row++) {
+      const sy = 0.35 + row * 0.55;
+      let bz = -0.65;
+      while (bz < 0.65) {
+        const bw = 0.04 + Math.random() * 0.04;
+        const bh = 0.28 + Math.random() * 0.12;
+        const bd = 0.28;
+        const color = bookColors[Math.floor(Math.random() * bookColors.length)];
+        const book = new THREE.Mesh(
+          new THREE.BoxGeometry(bd, bh, bw),
+          new THREE.MeshStandardMaterial({color, roughness: 0.55})
+        );
+        book.position.set(0.10, sy + bh * 0.5, bz);
+        shelfGroup.add(book);
+        bz += bw + 0.01;
+      }
+    }
+    this.add(shelfGroup);
+
+    // 2. Study Desk (X: -2.15, Z: 5.45)
+    const deskGroup = new THREE.Group();
+    deskGroup.position.set(-2.15, 0, 5.45);
+
+    const top = new THREE.Mesh(new THREE.BoxGeometry(1.40, 0.08, 0.85), woodMat);
+    top.position.y = 0.76;
+    deskGroup.add(top);
+
+    // 4 Brass legs
+    const legGeo = new THREE.CylinderGeometry(0.03, 0.025, 0.72, 12);
+    const legCoords = [[-0.60, 0.36, -0.35], [0.60, 0.36, -0.35], [-0.60, 0.36, 0.35], [0.60, 0.36, 0.35]];
+    for (const [lx, ly, lz] of legCoords) {
+      const leg = new THREE.Mesh(legGeo, brassMat);
+      leg.position.set(lx, ly, lz);
+      deskGroup.add(leg);
+    }
+
+    // Antique Spellbook on desk
+    const spellbook = new THREE.Mesh(
+      new THREE.BoxGeometry(0.34, 0.05, 0.26),
+      new THREE.MeshStandardMaterial({color: 0x6e2424, roughness: 0.45})
     );
-    bookCover.position.set(-2.35, 0.84, 5.40);
-    bookCover.rotation.y = 0.2;
-    this.add(bookCover);
+    spellbook.position.set(-0.25, 0.825, -0.05);
+    spellbook.rotation.y = 0.25;
+    deskGroup.add(spellbook);
 
-    // Interactive Runic Cubes on the desk
-    this.createRunicCube('cube1', new THREE.Vector3(-1.85, 0.88, 5.35), 0x3ae6ff);
-    this.createRunicCube('cube2', new THREE.Vector3(-1.75, 0.88, 5.55), 0xff88ff);
+    this.add(deskGroup);
 
-    // 3. Right Wall Gallery Display (X: 3.30, Z: 4.80)
-    const displayGeo = new THREE.BoxGeometry(0.50, 1.80, 2.20);
-    const displayMat = new THREE.MeshStandardMaterial({color: 0x2e1c12, roughness: 0.55});
-    const display = new THREE.Mesh(displayGeo, displayMat);
-    display.position.set(3.30, 0.90, 4.80);
-    this.add(display);
+    // Interactive Runic Cubes on the Study Desk
+    this.createRunicCube('study_cube_1', new THREE.Vector3(-1.85, 0.88, 5.35), 0x3ae6ff);
+    this.createRunicCube('study_cube_2', new THREE.Vector3(-1.75, 0.88, 5.55), 0xff88ff);
+
+    // Interactive Runic Cube on the Living Room Coffee Table
+    this.createRunicCube('living_cube', new THREE.Vector3(0.15, 0.48, -1.20), 0x57ffb0);
   }
 
   private createRunicCube(id: string, pos: THREE.Vector3, emissiveColor: number): void {
-    const geo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+    const geo = new THREE.BoxGeometry(0.14, 0.14, 0.14);
     const mat = new THREE.MeshStandardMaterial({
-      color: 0x1a243a,
+      color: 0x161c28,
       emissive: emissiveColor,
-      emissiveIntensity: 0.6,
+      emissiveIntensity: 0.75,
       roughness: 0.25,
-      metalness: 0.6,
+      metalness: 0.80,
     });
     const cube = new THREE.Mesh(geo, mat);
     cube.position.copy(pos);
@@ -432,7 +323,7 @@ export class HouseExpansion extends THREE.Group {
       id,
       name: 'Cubo Rúnico',
       mesh: cube,
-      colliderRadius: 0.10,
+      colliderRadius: 0.12,
       isHeld: false,
       velocity: new THREE.Vector3(),
       angularVelocity: new THREE.Vector3(),
@@ -441,95 +332,85 @@ export class HouseExpansion extends THREE.Group {
   }
 
   private buildRelicAndTargets(): void {
-    // 1. Central Relic Pedestal (X: 0, Z: 5.60)
-    const pedGeo = new THREE.CylinderGeometry(0.55, 0.68, 0.90, 8);
-    const pedMat = new THREE.MeshStandardMaterial({
-      color: 0x2e2f3d,
-      roughness: 0.5,
-      metalness: 0.2,
-    });
+    // 1. Central Relic Pedestal in the Conservatory (X: 0, Z: 5.50)
+    const pedGeo = new THREE.CylinderGeometry(0.55, 0.65, 0.90, 8);
+    const pedMat = new THREE.MeshStandardMaterial({color: 0x242834, roughness: 0.35, metalness: 0.7});
     const pedestal = new THREE.Mesh(pedGeo, pedMat);
-    pedestal.position.set(0, 0.45, 5.60);
+    pedestal.position.set(0, 0.45, 5.50);
     this.add(pedestal);
 
-    // Glowing Rune Inlay on Pedestal
-    const ringGeo = new THREE.RingGeometry(0.28, 0.46, 24);
-    const ringMat = new THREE.MeshBasicMaterial({
-      color: 0x6be5ff,
-      side: THREE.DoubleSide,
-    });
-    const pedRing = new THREE.Mesh(ringGeo, ringMat);
-    pedRing.rotation.x = -Math.PI / 2;
-    pedRing.position.set(0, 0.905, 5.60);
-    this.add(pedRing);
+    // Glowing Rune Ring on top of pedestal
+    const ringPlate = new THREE.Mesh(
+      new THREE.RingGeometry(0.24, 0.42, 24),
+      new THREE.MeshBasicMaterial({color: 0x62f7ff, side: THREE.DoubleSide})
+    );
+    ringPlate.rotation.x = -Math.PI / 2;
+    ringPlate.position.set(0, 0.905, 5.50);
+    this.add(ringPlate);
 
-    // 2. The Levitating Aether Relic Crystal
-    const relicGroup = new THREE.Group();
-    relicGroup.position.set(0, 1.35, 5.60);
+    // 2. The Levitating Aether Relic Crystal (Physical PBR Glass with Orbiting Rings)
+    const crystalGroup = new THREE.Group();
+    crystalGroup.position.set(0, 1.35, 5.50);
 
-    const crystalGeo = new THREE.OctahedronGeometry(0.28, 1);
+    const crystalGeo = new THREE.OctahedronGeometry(0.26, 0);
     const crystalMat = new THREE.MeshPhysicalMaterial({
-      color: 0x4ff2ff,
-      emissive: 0x33b8ff,
-      emissiveIntensity: 0.75,
-      roughness: 0.15,
-      metalness: 0.1,
-      transmission: 0.6,
+      color: 0x62f7ff,
+      emissive: 0x2288cc,
+      emissiveIntensity: 0.70,
+      roughness: 0.10,
+      metalness: 0.15,
+      transmission: 0.80,
       transparent: true,
-      opacity: 0.92,
+      opacity: 0.95,
+      ior: 1.55,
     });
     this.relicCrystal = new THREE.Mesh(crystalGeo, crystalMat);
-    relicGroup.add(this.relicCrystal);
+    crystalGroup.add(this.relicCrystal);
 
-    // Orbiting Arcane Rings
-    const r1Geo = new THREE.TorusGeometry(0.42, 0.015, 8, 32);
-    const rMat = new THREE.MeshBasicMaterial({color: 0xd86eff});
+    const r1Geo = new THREE.TorusGeometry(0.38, 0.014, 8, 32);
+    const rMat = new THREE.MeshBasicMaterial({color: 0xd966ff});
     this.relicRing1 = new THREE.Mesh(r1Geo, rMat);
-    relicGroup.add(this.relicRing1);
+    crystalGroup.add(this.relicRing1);
 
-    const r2Geo = new THREE.TorusGeometry(0.48, 0.015, 8, 32);
+    const r2Geo = new THREE.TorusGeometry(0.44, 0.014, 8, 32);
     this.relicRing2 = new THREE.Mesh(r2Geo, rMat);
-    relicGroup.add(this.relicRing2);
+    crystalGroup.add(this.relicRing2);
 
-    this.add(relicGroup);
+    this.add(crystalGroup);
 
     this.interactables.push({
       id: 'aether_crystal',
       name: 'Cristal de Éter',
-      mesh: relicGroup,
+      mesh: crystalGroup,
       colliderRadius: 0.35,
       isHeld: false,
       velocity: new THREE.Vector3(),
       angularVelocity: new THREE.Vector3(),
-      homePosition: relicGroup.position.clone(),
+      homePosition: crystalGroup.position.clone(),
     });
 
-    // 3. Arcane Training Target Pillars (Reaction Targets)
-    this.buildTargetPillar('target_left', new THREE.Vector3(-2.10, 0, 7.20), 1);
-    this.buildTargetPillar('target_right', new THREE.Vector3(2.10, 0, 7.20), 2);
+    // 3. Arcane Training Targets in the Conservatory
+    this.buildTargetPillar('target_left', new THREE.Vector3(-2.0, 0, 7.10), 1);
+    this.buildTargetPillar('target_right', new THREE.Vector3(2.0, 0, 7.10), 2);
   }
 
   private buildTargetPillar(id: string, basePos: THREE.Vector3, index: number): void {
-    const obeliskGeo = new THREE.CylinderGeometry(0.22, 0.28, 1.30, 6);
-    const obeliskMat = new THREE.MeshStandardMaterial({
-      color: 0x252a38,
-      roughness: 0.6,
-    });
+    const obeliskGeo = new THREE.CylinderGeometry(0.20, 0.26, 1.25, 6);
+    const obeliskMat = new THREE.MeshStandardMaterial({color: 0x242834, roughness: 0.55});
     const obelisk = new THREE.Mesh(obeliskGeo, obeliskMat);
-    obelisk.position.set(basePos.x, 0.65, basePos.z);
+    obelisk.position.set(basePos.x, 0.625, basePos.z);
     this.add(obelisk);
 
-    // Floating Target Orb
-    const orbGeo = new THREE.SphereGeometry(0.22, 24, 24);
+    const orbGeo = new THREE.SphereGeometry(0.20, 24, 24);
     const orbMat = new THREE.MeshStandardMaterial({
-      color: 0x1f1433,
+      color: 0x201435,
       emissive: 0x9d4edd,
-      emissiveIntensity: 0.85,
-      roughness: 0.2,
-      metalness: 0.5,
+      emissiveIntensity: 0.90,
+      roughness: 0.20,
+      metalness: 0.60,
     });
     const orb = new THREE.Mesh(orbGeo, orbMat);
-    orb.position.set(basePos.x, 1.55, basePos.z);
+    orb.position.set(basePos.x, 1.50, basePos.z);
     this.add(orb);
 
     if (index === 1) {
@@ -544,7 +425,7 @@ export class HouseExpansion extends THREE.Group {
       id,
       name: `Alvo Arcano ${index}`,
       mesh: orb,
-      colliderRadius: 0.28,
+      colliderRadius: 0.26,
       isHeld: false,
       isTarget: true,
       targetCooldown: 0,
@@ -553,7 +434,7 @@ export class HouseExpansion extends THREE.Group {
       homePosition: orb.position.clone(),
       onHit: () => {
         orbMat.emissive.setHex(0x57ffb0);
-        orbMat.emissiveIntensity = 2.2;
+        orbMat.emissiveIntensity = 2.4;
         entity.targetCooldown = 0.6;
       },
     };
@@ -561,17 +442,17 @@ export class HouseExpansion extends THREE.Group {
   }
 
   private buildLighting(): void {
-    // Warm Archway Chandelier/Lantern Light
-    const archLight = new THREE.PointLight(0xffdfb3, 1.8, 6.5);
-    archLight.position.set(0, 2.50, 3.20);
+    // Warm Archway Chandelier
+    const archLight = new THREE.PointLight(0xffdfb3, 1.6, 6.0);
+    archLight.position.set(0, 2.65, 2.85);
     this.add(archLight);
 
-    // Mystical Arcane Light over the Central Pedestal
-    const relicLight = new THREE.PointLight(0x73d2ff, 2.2, 5.0);
-    relicLight.position.set(0, 1.60, 5.60);
+    // Glowing Arcane Crystal Light
+    const relicLight = new THREE.PointLight(0x70d8ff, 2.2, 5.0);
+    relicLight.position.set(0, 1.60, 5.50);
     this.add(relicLight);
 
-    // Warm Study Desk Lamp
+    // Study Desk Lamp
     const deskLight = new THREE.PointLight(0xffeaad, 1.2, 3.5);
     deskLight.position.set(-2.15, 1.15, 5.45);
     this.add(deskLight);
@@ -580,28 +461,28 @@ export class HouseExpansion extends THREE.Group {
   update(dt: number): void {
     const time = performance.now() * 0.001;
 
-    // Relic Idle Levitation Animation
+    // Relic Idle Levitation
     if (this.relicCrystal) {
       this.relicCrystal.rotation.y += 0.8 * dt;
-      this.relicCrystal.rotation.x = Math.sin(time * 1.5) * 0.15;
+      this.relicCrystal.rotation.x = Math.sin(time * 1.5) * 0.12;
     }
     if (this.relicRing1) {
-      this.relicRing1.rotation.x += 1.2 * dt;
-      this.relicRing1.rotation.y += 0.6 * dt;
+      this.relicRing1.rotation.x += 1.1 * dt;
+      this.relicRing1.rotation.y += 0.5 * dt;
     }
     if (this.relicRing2) {
-      this.relicRing2.rotation.y -= 1.4 * dt;
-      this.relicRing2.rotation.z += 0.9 * dt;
+      this.relicRing2.rotation.y -= 1.3 * dt;
+      this.relicRing2.rotation.z += 0.8 * dt;
     }
 
-    // Target Orbs Bobbing & Cooldown Recovery
+    // Target Orbs Bobbing
     if (this.targetOrb1) {
-      this.targetOrb1.position.y = 1.55 + Math.sin(time * 2.0) * 0.05;
-      this.targetOrb1.rotation.y += 1.0 * dt;
+      this.targetOrb1.position.y = 1.50 + Math.sin(time * 2.0) * 0.04;
+      this.targetOrb1.rotation.y += 0.8 * dt;
     }
     if (this.targetOrb2) {
-      this.targetOrb2.position.y = 1.55 + Math.cos(time * 2.0) * 0.05;
-      this.targetOrb2.rotation.y -= 1.0 * dt;
+      this.targetOrb2.position.y = 1.50 + Math.cos(time * 2.0) * 0.04;
+      this.targetOrb2.rotation.y -= 0.8 * dt;
     }
 
     for (const item of this.interactables) {
@@ -610,15 +491,15 @@ export class HouseExpansion extends THREE.Group {
         if (item.targetCooldown <= 0) {
           if (item.id === 'target_left' && this.targetMat1) {
             this.targetMat1.emissive.setHex(0x9d4edd);
-            this.targetMat1.emissiveIntensity = 0.85;
+            this.targetMat1.emissiveIntensity = 0.90;
           } else if (item.id === 'target_right' && this.targetMat2) {
             this.targetMat2.emissive.setHex(0x9d4edd);
-            this.targetMat2.emissiveIntensity = 0.85;
+            this.targetMat2.emissiveIntensity = 0.90;
           }
         }
       }
 
-      // Physics integration for thrown/knocked items (when not held and not static target)
+      // Physics integration for free items (when not held and not static target)
       if (!item.isHeld && !item.isTarget) {
         const speedSq = item.velocity.lengthSq();
         if (speedSq > 0.0001) {
@@ -631,30 +512,28 @@ export class HouseExpansion extends THREE.Group {
           item.velocity.y -= 9.8 * dt;
 
           // Floor bounce
-          const minY = 0.01 + item.colliderRadius;
+          const minY = 0.02 + item.colliderRadius;
           if (item.mesh.position.y <= minY) {
             item.mesh.position.y = minY;
-            item.velocity.y = -item.velocity.y * 0.42;
-            item.velocity.x *= 0.86;
-            item.velocity.z *= 0.86;
-            item.angularVelocity.multiplyScalar(0.85);
+            item.velocity.y = -item.velocity.y * 0.40;
+            item.velocity.x *= 0.85;
+            item.velocity.z *= 0.85;
+            item.angularVelocity.multiplyScalar(0.82);
 
-            if (Math.abs(item.velocity.y) < 0.15) {
+            if (Math.abs(item.velocity.y) < 0.12) {
               item.velocity.y = 0;
             }
           }
 
-          // Wall bounds clamping inside the expanded house
-          item.mesh.position.x = Math.max(-3.5, Math.min(3.5, item.mesh.position.x));
-          item.mesh.position.z = Math.max(-3.5, Math.min(8.0, item.mesh.position.z));
+          // Wall clamping across the expanded house
+          item.mesh.position.x = Math.max(-3.50, Math.min(3.50, item.mesh.position.x));
+          item.mesh.position.z = Math.max(-3.55, Math.min(7.90, item.mesh.position.z));
         }
       }
     }
   }
 
   dispose(): void {
-    this.parquetTex.dispose();
-    this.wallTex.dispose();
-    this.bookTex.dispose();
+    // Geometries & materials disposed
   }
 }

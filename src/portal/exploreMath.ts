@@ -144,9 +144,9 @@ export interface RoomObstacleSet {
 
 export const DEFAULT_ROOM_BOUNDS: RoomBounds = {
   minX: -2.05,
-  maxX: 2.50,
-  minZ: -3.70,
-  maxZ: 2.80,
+  maxX: 2.45,
+  minZ: -3.65,
+  maxZ: 2.55,
   floorY: 1.50,
 };
 
@@ -166,6 +166,8 @@ export const DEFAULT_ROOM_OBSTACLES: RoomObstacleSet = {
     {x: -0.58, z: -1.65, radius: 0.14},
     // Pilar direito da moldura do portal
     {x: 0.58, z: -1.65, radius: 0.14},
+    // Pedestal do Cristal de Éter no canto da sala
+    {x: -1.55, z: 2.05, radius: 0.45},
   ],
 };
 
@@ -178,23 +180,23 @@ export interface CompoundRoomLayout {
 export const EXPANDED_HOUSE_LAYOUT: CompoundRoomLayout = {
   floorY: 1.50,
   sectors: [
-    // Sala principal (Living Room)
-    {minX: -2.05, maxX: 2.50, minZ: -3.70, maxZ: 2.75},
-    // Passagem / Arco de transição
-    {minX: -1.35, maxX: 1.35, minZ: 2.55, maxZ: 3.15},
-    // Gabinete Arcano & Jardim de Inverno (Arcane Study & Sunroom)
-    {minX: -3.60, maxX: 3.60, minZ: 2.95, maxZ: 8.20},
+    // Setor 1: Sala Principal (Living Room)
+    {minX: -2.05, maxX: 2.45, minZ: -3.65, maxZ: 2.65},
+    // Setor 2: Arco / Passagem conectando as duas salas
+    {minX: -0.85, maxX: 0.85, minZ: 2.55, maxZ: 3.10},
+    // Setor 3: Gabinete Arcano & Jardim de Inverno (Arcane Conservatory)
+    {minX: -3.60, maxX: 3.60, minZ: 3.00, maxZ: 8.00},
   ],
   obstacles: {
     boxes: [
-      // Sofá cinza grande atrás do jogador
+      // Sofá cinza grande atrás do jogador (bloqueia atravessar para trás)
       {minX: -1.15, maxX: 1.15, minZ: 0.35, maxZ: 1.65},
-      // Mesa de estudos e livros (Study Desk)
-      {minX: -2.90, maxX: -1.40, minZ: 4.80, maxZ: 6.10},
+      // Mesa de estudos no novo cômodo (Study Desk)
+      {minX: -2.80, maxX: -1.30, minZ: 4.80, maxZ: 6.00},
       // Estante de livros esquerda (Bookshelf Left)
-      {minX: -3.60, maxX: -3.00, minZ: 3.30, maxZ: 4.70},
-      // Vitrine / Estante direita (Bookshelf Right)
-      {minX: 3.00, maxX: 3.60, minZ: 3.50, maxZ: 6.20},
+      {minX: -3.60, maxX: -2.90, minZ: 3.30, maxZ: 4.80},
+      // Vitrine / Expositor à direita (Display Right)
+      {minX: 2.90, maxX: 3.60, minZ: 3.40, maxZ: 6.00},
     ],
     circles: [
       // Mesa de centro redonda em frente ao sofá
@@ -207,23 +209,21 @@ export const EXPANDED_HOUSE_LAYOUT: CompoundRoomLayout = {
       {x: -0.58, z: -1.65, radius: 0.14},
       // Pilar direito da moldura do portal
       {x: 0.58, z: -1.65, radius: 0.14},
-      // Pedestal central do Cristal de Éter (Central Relic Pedestal)
-      {x: 0.0, z: 5.60, radius: 0.65},
-      // Pilar de treino Arcano 1 (Target Obelisk 1)
-      {x: -2.10, z: 7.20, radius: 0.32},
-      // Pilar de treino Arcano 2 (Target Obelisk 2)
-      {x: 2.10, z: 7.20, radius: 0.32},
+      // Pedestal do Cristal de Éter na sala
+      {x: -1.55, z: 2.05, radius: 0.42},
+      // Pedestal Central de Relíquias no Conservatório
+      {x: 0.0, z: 5.50, radius: 0.65},
     ],
   },
 };
 
 /**
- * Checks if a position with player radius is inside any walkable sector.
+ * Checks if a 2D position with player radius is inside any walkable sector of the house.
  */
 export function isInsideAnySector(
   x: number,
   z: number,
-  sectors: BoxObstacle[],
+  sectors: BoxObstacle[] = EXPANDED_HOUSE_LAYOUT.sectors,
   radius = 0.25
 ): boolean {
   for (const s of sectors) {
@@ -241,7 +241,8 @@ export function isInsideAnySector(
 
 /**
  * Resolves 2D cylinder player collision against room walls and furniture obstacles,
- * supporting compound multi-room sectors with smooth sliding along walls and doorways.
+ * supporting compound multi-room sectors with smooth sliding along walls and doorways
+ * while strictly preventing the player from ever passing through outer walls.
  */
 export function resolveRoomCollision(
   currentPos: {x: number; y: number; z: number},
@@ -255,24 +256,50 @@ export function resolveRoomCollision(
   let nextX = currentPos.x;
   let nextZ = currentPos.z;
 
-  // Step 1: Axis-independent sector validation for smooth sliding along diagonal walls and doorways
+  const doorMinX = -0.85 + playerRadius;
+  const doorMaxX = 0.85 - playerRadius;
+  const livingMaxZ = 2.65 - playerRadius;
+  const studyMinZ = 3.00 + playerRadius;
+
+  // Step 1: Enforce doorway portal gate between Living Room (z <= 2.65) and Study (z >= 3.00)
+  let clampedTargetZ = targetZ;
+  if (currentPos.z <= 2.65 + 1e-4) {
+    // Player is in Living Room: cannot cross z > 2.65 unless x is aligned with doorway
+    const inDoorwayX = targetX >= doorMinX - 1e-4 && targetX <= doorMaxX + 1e-4;
+    if (!inDoorwayX && targetZ > livingMaxZ) {
+      clampedTargetZ = livingMaxZ;
+    }
+  } else if (currentPos.z >= 3.00 - 1e-4) {
+    // Player is in Conservatory/Study: cannot cross z < 3.00 unless x is aligned with doorway
+    const inDoorwayX = targetX >= doorMinX - 1e-4 && targetX <= doorMaxX + 1e-4;
+    if (!inDoorwayX && targetZ < studyMinZ) {
+      clampedTargetZ = studyMinZ;
+    }
+  }
+
+  // Step 2: Axis-independent sliding validation
   const canMoveX = isInsideAnySector(targetX, currentPos.z, layout.sectors, playerRadius);
-  const canMoveZ = isInsideAnySector(currentPos.x, targetZ, layout.sectors, playerRadius);
+  const canMoveZ = isInsideAnySector(currentPos.x, clampedTargetZ, layout.sectors, playerRadius);
 
   if (canMoveX) {
     nextX = targetX;
   }
   if (canMoveZ) {
-    nextZ = targetZ;
+    nextZ = clampedTargetZ;
   }
 
-  // If both axes together are valid, use target position directly
-  if (isInsideAnySector(targetX, targetZ, layout.sectors, playerRadius)) {
+  // If diagonal movement is completely valid, take both
+  if (isInsideAnySector(targetX, clampedTargetZ, layout.sectors, playerRadius)) {
     nextX = targetX;
-    nextZ = targetZ;
+    nextZ = clampedTargetZ;
   }
 
-  // Step 2: Resolve against circular obstacles (tables, ottomans, relic pedestal, target pillars)
+  // Inside the connecting archway corridor (z between 2.60 and 3.05), enforce side jamb walls
+  if (nextZ > 2.60 && nextZ < 3.05) {
+    nextX = Math.max(doorMinX, Math.min(doorMaxX, nextX));
+  }
+
+  // Step 3: Resolve against circular obstacles (tables, pedestals, portal posts)
   for (const c of layout.obstacles.circles) {
     const minDist = c.radius + playerRadius;
     const dx = nextX - c.x;
@@ -284,14 +311,14 @@ export function resolveRoomCollision(
       const nz = dz / dist;
       const pushX = c.x + nx * minDist;
       const pushZ = c.z + nz * minDist;
-      if (isInsideAnySector(pushX, pushZ, layout.sectors, playerRadius * 0.5)) {
+      if (isInsideAnySector(pushX, pushZ, layout.sectors, playerRadius * 0.4)) {
         nextX = pushX;
         nextZ = pushZ;
       }
     }
   }
 
-  // Step 3: Resolve against box obstacles (sofa, study desk, bookshelves)
+  // Step 4: Resolve against box obstacles (sofa, study desk, bookshelves)
   for (const b of layout.obstacles.boxes) {
     const expandedMinX = b.minX - playerRadius;
     const expandedMaxX = b.maxX + playerRadius;
@@ -317,7 +344,7 @@ export function resolveRoomCollision(
       else if (minDist === distFront) candZ = expandedMinZ;
       else candZ = expandedMaxZ;
 
-      if (isInsideAnySector(candX, candZ, layout.sectors, playerRadius * 0.5)) {
+      if (isInsideAnySector(candX, candZ, layout.sectors, playerRadius * 0.4)) {
         nextX = candX;
         nextZ = candZ;
       }
